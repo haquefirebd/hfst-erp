@@ -49,11 +49,7 @@
     { id: 'proj-2', name: 'Bashundhara City mall Alarm Retrofit', client: 'BASHUNDHARA GROUP', location: 'Baridhara, Dhaka' }
   ]);
 
-  let items = $state([
-    { id: 'item-1', sku: 'FM200-CYL-120L', name: 'FM200 Clean Agent Cylinder 120L', type: 'BatchManaged', average_consumption_rate: 1.5, lead_time_days: 45, reorder_point: 67.5, unit: 'Pcs', initial_quantity: 0, selling_price: 125000, purchase_price: 95000 },
-    { id: 'item-2', sku: 'PANEL-NFX-72', name: 'Addressable Fire Alarm Control Panel', type: 'Serialized', average_consumption_rate: 0.2, lead_time_days: 60, reorder_point: 12.0, unit: 'Pcs', initial_quantity: 0, selling_price: 350000, purchase_price: 280000 },
-    { id: 'item-3', sku: 'SPRINK-HD-12', name: 'HD Brass Fire Sprinkler Head 1/2"', type: 'Standard', average_consumption_rate: 10.0, lead_time_days: 15, reorder_point: 150.0, unit: 'Pcs', initial_quantity: 0, selling_price: 750, purchase_price: 450 }
-  ]);
+  let items = $state([]);
 
   let warehouses = $state([
     { id: 'wh-1', name: 'Uttara Central Depot', location: 'Uttara, Dhaka', active: true },
@@ -61,48 +57,22 @@
   ]);
 
   // Stock Movement History Log
-  let stockLedger = $state([
-    { id: 'l-1', item_sku: 'FM200-CYL-120L', from: 'Supplier (Stock Entry)', to: 'Uttara Central Depot', qty: 100, type: 'Stock In', date: '2026-06-24' },
-    { id: 'l-2', item_sku: 'PANEL-NFX-72', from: 'Supplier (Stock Entry)', to: 'Uttara Central Depot', qty: 15, type: 'Stock In', date: '2026-06-24' },
-    { id: 'l-3', item_sku: 'PANEL-NFX-72', from: 'Uttara Central Depot', to: 'High-Rise Tower Project', qty: 1, type: 'Stock Out', serial: 'SN-NFX-9081', date: '2026-06-24' }
-  ]);
+  let stockLedger = $state([]);
 
   // Serialized Assets Track
-  let serializedAssets = $state([
-    { serial: 'SN-NFX-9081', sku: 'PANEL-NFX-72', status: 'Installed', warranty: '2027-06-24', project: 'High-Rise Tower' },
-    { serial: 'SN-NFX-9082', sku: 'PANEL-NFX-72', status: 'In-Stock', warranty: '2027-06-24', project: null },
-    { serial: 'SN-NFX-9083', sku: 'PANEL-NFX-72', status: 'In-Stock', warranty: '2027-06-24', project: null }
-  ]);
+  let serializedAssets = $state([]);
 
   // Batches Track (Expiry & Hydrostatic Test compliance)
-  let batches = $state([
-    { batch: 'BAT-FM200-01', sku: 'FM200-CYL-120L', qty: 99, mfg: '2025-01-10', expiry: '2030-01-10', hydro_due: '2029-06-15' },
-    { batch: 'BAT-FM200-02', sku: 'FM200-CYL-120L', qty: 50, mfg: '2026-02-15', expiry: '2031-02-15', hydro_due: '2026-07-10' }
-  ]);
+  let batches = $state([]);
 
   // Quote Revision Negotiation Tree
-  let quotes = $state([
-    {
-      id: 'Q-2026-001',
-      project: 'High-Rise Tower Fire Sprinkler installation',
-      versions: [
-        { version: 1, status: 'Superseded', total: 4500000, vat: 675000, date: '2026-06-01', notes: 'Initial client proposal estimate' },
-        { version: 2, status: 'Superseded', total: 4200000, vat: 630000, date: '2026-06-10', notes: 'Discounted price offered' },
-        { version: 3, status: 'Approved', total: 4150000, vat: 622500, date: '2026-06-15', notes: 'Final agreed contract rates' }
-      ]
-    }
-  ]);
+  let quotes = $state([]);
 
   // Challan Delivery Tracking
-  let deliveryChallans = $state([
-    { id: 'CHALLAN-2026-001', project: 'High-Rise Tower Fire Sprinkler installation', status: 'Delivered', item_sku: 'FM200-CYL-120L', shipped_qty: 10, invoiced_qty: 9 }
-  ]);
+  let deliveryChallans = $state([]);
 
   // Invoices & Outstanding Payments
-  let invoices = $state([
-    { id: 'INV-2026-001', project: 'High-Rise Tower Fire Sprinkler installation', challan: 'CHALLAN-2026-001', qty: 6, price: 125000, vat_challan: 'NBR Mushak-6.3 #9081', status: 'Paid', date: '2026-06-16', due: '2026-07-16' },
-    { id: 'INV-2026-002', project: 'High-Rise Tower Fire Sprinkler installation', challan: 'CHALLAN-2026-001', qty: 3, price: 125000, vat_challan: 'NBR Mushak-6.3 #9110', status: 'Unpaid', date: '2026-06-20', due: '2026-07-20' }
-  ]);
+  let invoices = $state([]);
 
   // -------------------------------------------------------------
   // Dynamic UI States
@@ -184,7 +154,7 @@
   async function fetchItems() {
     try {
       const { data, error } = await supabase.from('items').select('*').order('sku');
-      if (data && data.length > 0) {
+      if (data) {
         items = data.map((i: any) => ({
           id: i.id,
           sku: i.sku,
@@ -207,7 +177,7 @@
   async function fetchProjects() {
     try {
       const { data } = await supabase.from('projects').select('*').order('name');
-      if (data && data.length > 0) {
+      if (data) {
         projects = data.map((p: any) => ({
           id: p.id,
           name: p.name,
@@ -221,7 +191,7 @@
   async function fetchWarehouses() {
     try {
       const { data } = await supabase.from('warehouses').select('*').order('name');
-      if (data && data.length > 0) {
+      if (data) {
         warehouses = data.map((w: any) => ({
           id: w.id,
           name: w.name,
@@ -243,7 +213,7 @@
           dest_wh: dest_warehouse_id (name)
         `)
         .order('created_at', { ascending: true });
-      if (data && data.length > 0) {
+      if (data) {
         stockLedger = data.map((l: any) => ({
           id: l.id,
           item_sku: l.items?.sku || '',
@@ -267,7 +237,7 @@
           items (sku),
           projects (name)
         `);
-      if (data && data.length > 0) {
+      if (data) {
         serializedAssets = data.map((a: any) => ({
           serial: a.serial_number,
           sku: a.items?.sku || '',
@@ -287,7 +257,7 @@
           batch_number, qty, manufacturing_date, expiry_date, hydrostatic_test_due_date,
           items (sku)
         `);
-      if (data && data.length > 0) {
+      if (data) {
         batches = data.map((b: any) => ({
           batch: b.batch_number,
           sku: b.items?.sku || '',
@@ -309,7 +279,7 @@
           projects (name),
           quote_versions (version_number, status, total, vat, date, notes)
         `);
-      if (data && data.length > 0) {
+      if (data) {
         quotes = data.map((q: any) => ({
           id: q.id,
           project: q.projects?.name || '',
@@ -337,7 +307,7 @@
           projects (name),
           items (sku)
         `);
-      if (data && data.length > 0) {
+      if (data) {
         deliveryChallans = data.map((dc: any) => ({
           id: dc.id,
           project: dc.projects?.name || '',
@@ -359,7 +329,7 @@
           projects (name),
           challan_id
         `);
-      if (data && data.length > 0) {
+      if (data) {
         invoices = data.map((inv: any) => ({
           id: inv.id,
           project: inv.projects?.name || 'Direct Sale',
