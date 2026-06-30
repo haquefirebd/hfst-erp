@@ -188,10 +188,19 @@
   let productSuccess = $state('');
 
   // Project CRUD Form states
-  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '' });
+  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items: '' });
   let isEditingProject = $state(false);
   let projectError = $state('');
   let projectSuccess = $state('');
+
+  // Quick-Add Item popup states
+  let showItemCheckPopup = $state(false);
+  let showQuickAddItemModal = $state(false);
+  let quickAddItemSku = $state('');
+  let quickAddItemName = $state('');
+  let quickAddItemPrice = $state(0);
+  let quickAddItemUnit = $state('Pcs');
+  let quickAddItemType = $state('Standard');
 
   // Interactive Form Inputs (Challan based)
   let inputLedger = $state({ sku: 'FM200-CYL-120L', from: 'Uttara Central Depot', to: 'High-Rise Tower Project', qty: 10, type: 'Stock Out', serial: '', batch: 'BAT-FM200-01' });
@@ -257,7 +266,8 @@
           starting_date: p.starting_date || '',
           is_refilling_project: !!p.is_refilling_project,
           contact_number: p.contact_number || '',
-          contact_person: p.contact_person || ''
+          contact_person: p.contact_person || '',
+          supplied_items: p.supplied_items || ''
         }));
       }
     } catch (e) {}
@@ -687,7 +697,8 @@
       starting_date: inputProjectRecord.starting_date || null,
       is_refilling_project: !!inputProjectRecord.is_refilling_project,
       contact_number: inputProjectRecord.contact_number.trim() || null,
-      contact_person: inputProjectRecord.contact_person.trim() || null
+      contact_person: inputProjectRecord.contact_person.trim() || null,
+      supplied_items: inputProjectRecord.is_supply_items ? (inputProjectRecord.supplied_items || '').trim() : null
     };
 
     if (!payload.name || !payload.client_name || !payload.location) {
@@ -710,7 +721,8 @@
             starting_date: payload.starting_date || '',
             is_refilling_project: payload.is_refilling_project,
             contact_number: payload.contact_number || '',
-            contact_person: payload.contact_person || ''
+            contact_person: payload.contact_person || '',
+            supplied_items: payload.supplied_items || ''
           };
           projects = [...projects];
           persistLocalData();
@@ -743,7 +755,8 @@
           starting_date: payload.starting_date || '',
           is_refilling_project: payload.is_refilling_project,
           contact_number: payload.contact_number || '',
-          contact_person: payload.contact_person || ''
+          contact_person: payload.contact_person || '',
+          supplied_items: payload.supplied_items || ''
         };
         projects = [...projects, newProj];
         persistLocalData();
@@ -809,13 +822,104 @@
       starting_date: proj.starting_date || '',
       is_refilling_project: !!proj.is_refilling_project,
       contact_number: proj.contact_number || '',
-      contact_person: proj.contact_person || ''
+      contact_person: proj.contact_person || '',
+      is_supply_items: !!proj.supplied_items,
+      supplied_items: proj.supplied_items || ''
     };
   }
 
   function resetProjectForm() {
     isEditingProject = false;
-    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '' };
+    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items: '' };
+  }
+
+  // -------------------------------------------------------------
+  // Quick-Add Inventory Item Popup Handlers
+  // -------------------------------------------------------------
+  let tempUnregisteredSku = $state('');
+
+  function handleCheckInventoryItem(e: Event) {
+    const val = (e.target as HTMLInputElement).value.trim();
+    if (!val) return;
+
+    const exists = items.some(i => i.sku.toLowerCase() === val.toLowerCase() || i.name.toLowerCase() === val.toLowerCase());
+    if (!exists) {
+      tempUnregisteredSku = val;
+      showItemCheckPopup = true;
+    } else {
+      const match = items.find(i => i.sku.toLowerCase() === val.toLowerCase() || i.name.toLowerCase() === val.toLowerCase());
+      if (match) {
+        inputProjectRecord.supplied_items = match.sku;
+      }
+    }
+  }
+
+  function handleCancelItemPopup() {
+    showItemCheckPopup = false;
+    inputProjectRecord.supplied_items = '';
+    tempUnregisteredSku = '';
+  }
+
+  function handleOpenQuickAdd() {
+    showItemCheckPopup = false;
+    quickAddItemSku = tempUnregisteredSku;
+    quickAddItemName = '';
+    quickAddItemPrice = 0;
+    quickAddItemUnit = 'Pcs';
+    quickAddItemType = 'Standard';
+    showQuickAddItemModal = true;
+  }
+
+  async function handleQuickSaveItem() {
+    if (!quickAddItemSku.trim() || !quickAddItemName.trim()) {
+      alert('SKU and Name are required.');
+      return;
+    }
+
+    const newItemPayload = {
+      sku: quickAddItemSku.trim(),
+      name: quickAddItemName.trim(),
+      type: quickAddItemType,
+      average_consumption_rate: 1.0,
+      lead_time_days: 30,
+      unit: quickAddItemUnit,
+      initial_quantity: 0,
+      selling_price: quickAddItemPrice,
+      purchase_price: 0
+    };
+
+    const isSandbox = (token === 'hfst_erp_admin_sandbox_token' || !token);
+    if (isSandbox) {
+      const sandboxItem = {
+        id: 'item-' + (items.length > 0 ? Math.max(...items.map(i => parseInt(i.id.split('-')[1] || '0'))) + 1 : 1),
+        ...newItemPayload,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      items = [...items, sandboxItem];
+      persistLocalData();
+      inputProjectRecord.supplied_items = newItemPayload.sku;
+      showQuickAddItemModal = false;
+      alert(`Item ${newItemPayload.sku} added to catalog successfully (Sandbox).`);
+    } else {
+      const nextItemId = 'item-' + (items.length > 0 ? Math.max(...items.map(i => parseInt(i.id.split('-')[1] || '0'))) + 1 : 1);
+      try {
+        const { error } = await supabase.from('items').insert({
+          id: nextItemId,
+          ...newItemPayload
+        });
+        if (error) {
+          alert('Error adding item: ' + error.message);
+        } else {
+          await loadAllData();
+          inputProjectRecord.supplied_items = newItemPayload.sku;
+          showQuickAddItemModal = false;
+          alert(`Item ${newItemPayload.sku} added to catalog successfully in Supabase!`);
+        }
+      } catch (err: any) {
+        alert('Network error adding item: ' + err.message);
+      }
+    }
   }
 
   // -------------------------------------------------------------
@@ -1478,6 +1582,74 @@
         </button>
       </div>
     </div>
+
+    <!-- Popup 1: Item Not Found Warning Dialog -->
+    {#if showItemCheckPopup}
+      <div class="modal-backdrop" onclick={handleCancelItemPopup}>
+        <div class="modal-card" onclick={(e) => e.stopPropagation()} style="max-width: 450px !important; text-align: center; padding: 24px !important;">
+          <div style="font-size: 40px; margin-bottom: 12px;">🔍</div>
+          <h2 style="margin: 0 0 12px 0; color: #f97316;">Item Not In Inventory</h2>
+          <p style="font-size: 14px; color: #94a3b8; line-height: 1.5; margin-bottom: 24px;">
+            The item SKU/Code <strong>"{tempUnregisteredSku}"</strong> was not found in the current warehouse inventory catalog. Would you like to add it now?
+          </p>
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <button type="button" onclick={handleOpenQuickAdd} class="btn btn-primary" style="min-width: 120px;">Add Now</button>
+            <button type="button" onclick={handleCancelItemPopup} class="btn btn-cancel" style="min-width: 120px;">Later</button>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Popup 2: Quick-Add Item Modal Form -->
+    {#if showQuickAddItemModal}
+      <div class="modal-backdrop" onclick={() => showQuickAddItemModal = false}>
+        <div class="modal-card" onclick={(e) => e.stopPropagation()} style="max-width: 480px !important; padding: 24px !important;">
+          <div class="modal-header">
+            <h2 style="margin: 0; color: #cbd5e1;">🛠 Quick Add Inventory Item</h2>
+            <button type="button" onclick={() => showQuickAddItemModal = false} class="btn-close-modal" aria-label="Close Modal">✕</button>
+          </div>
+          <form onsubmit={(e) => { e.preventDefault(); handleQuickSaveItem(); }} class="standard-form" style="margin-top: 15px;">
+            <label>
+              Item Code / SKU *
+              <input type="text" bind:value={quickAddItemSku} required placeholder="e.g. FD-SMK-900" />
+            </label>
+            <label>
+              Equipment / Item Name *
+              <input type="text" bind:value={quickAddItemName} required placeholder="e.g. Optical Smoke Detector" />
+            </label>
+            <div class="form-row-2">
+              <label>
+                Tracking Method
+                <select bind:value={quickAddItemType}>
+                  <option value="Standard">Standard (Bulk counts)</option>
+                  <option value="Serialized">Serialized Asset</option>
+                  <option value="BatchManaged">Batch Managed</option>
+                  <option value="KitAssembly">Kit Assembly</option>
+                </select>
+              </label>
+              <label>
+                Unit of Measure
+                <select bind:value={quickAddItemUnit}>
+                  <option value="Pcs">Pcs (Pieces)</option>
+                  <option value="Mtrs">Mtrs (Meters)</option>
+                  <option value="Sets">Sets</option>
+                  <option value="Kits">Kits</option>
+                  <option value="Kgs">Kgs</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Standard Selling Price (BDT) *
+              <input type="number" step="0.01" bind:value={quickAddItemPrice} min="0" required />
+            </label>
+            <div class="form-actions" style="margin-top: 15px;">
+              <button type="submit" class="btn btn-primary" style="width: 100%;">Save to Inventory & Select</button>
+              <button type="button" onclick={() => showQuickAddItemModal = false} class="btn btn-cancel" style="width: 100%;">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {/if}
   </div>
 {:else}
   <main class="erp-container">
@@ -1709,13 +1881,14 @@
                       <th>Starting Date</th>
                       <th>Contact Info</th>
                       <th>Refill Reminders</th>
+                      <th>Supply Items</th>
                       <th style="text-align: center;">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {#if projects.length === 0}
                       <tr>
-                        <td colspan="8" class="text-muted" style="text-align: center; padding: 20px;">No projects registered. Create one using the form on the right!</td>
+                        <td colspan="9" class="text-muted" style="text-align: center; padding: 20px;">No projects registered. Create one using the form on the right!</td>
                       </tr>
                     {:else}
                       {#each projects as proj}
@@ -1738,6 +1911,13 @@
                           </td>
                           <td>
                             <span class={refill.class}>{refill.text}</span>
+                          </td>
+                          <td>
+                            {#if proj.supplied_items}
+                              <code class="code-sku">{proj.supplied_items}</code>
+                            {:else}
+                              <span class="text-muted">None</span>
+                            {/if}
                           </td>
                           <td style="text-align: center;">
                             <div style="display: flex; gap: 6px; justify-content: center;">
@@ -1798,6 +1978,32 @@
                     placeholder="e.g. 01712-345678" 
                   />
                 </label>
+
+                <div style="margin-top: 12px; margin-bottom: 12px;">
+                  <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" bind:checked={inputProjectRecord.is_supply_items} style="width: auto; min-height: auto; margin: 0;" />
+                    <strong>Supply Items</strong>
+                  </label>
+                </div>
+
+                {#if inputProjectRecord.is_supply_items}
+                  <label>
+                    Select/Type Supply Item SKU *
+                    <input 
+                      type="text" 
+                      list="inventory-items-datalist" 
+                      bind:value={inputProjectRecord.supplied_items} 
+                      onchange={handleCheckInventoryItem}
+                      placeholder="e.g. FM200-CYL-120L" 
+                      required
+                    />
+                    <datalist id="inventory-items-datalist">
+                      {#each items as item}
+                        <option value={item.sku}>{item.name} ({item.unit})</option>
+                      {/each}
+                    </datalist>
+                  </label>
+                {/if}
 
                 <div class="form-actions">
                   <button type="submit" class="btn btn-primary">{isEditingProject ? 'Save Changes' : 'Register Project'}</button>

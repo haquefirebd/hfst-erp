@@ -22,6 +22,7 @@ CREATE TABLE projects (
     is_refilling_project BOOLEAN DEFAULT FALSE,
     contact_person VARCHAR(255),
     contact_number VARCHAR(100),
+    supplied_items TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
