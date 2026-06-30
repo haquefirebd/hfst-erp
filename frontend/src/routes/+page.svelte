@@ -3197,10 +3197,8 @@
   :global(body.light-mode) .content-header h1,
   :global(body.light-mode) .text-bold,
   :global(body.light-mode) .quote-header h3,
-  :global(body.light-mode) .challan-header h4,
   :global(body.light-mode) .section-title,
-  :global(body.light-mode) .calc-row strong,
-  :global(body.light-mode) .stat strong {
+  :global(body.light-mode) .calc-row strong {
     color: #0f172a !important;
   }
 
@@ -3231,7 +3229,6 @@
   :global(body.light-mode) .calculation-summary-box h3,
   :global(body.light-mode) .project-name,
   :global(body.light-mode) .notes,
-  :global(body.light-mode) .stat span,
   :global(body.light-mode) .logo-text span,
   :global(body.light-mode) .btn-close-modal {
     color: #64748b !important;
@@ -3555,23 +3552,7 @@
     font-weight: 600;
   }
 
-  .login-hints {
-    font-size: 12px;
-    color: #94a3b8;
-    background-color: #171d28;
-    border: 1px solid #232a35;
-    padding: 10px;
-    border-radius: 6px;
-    line-height: 1.4;
-  }
 
-  .login-hints code {
-    font-family: 'JetBrains Mono', monospace;
-    color: #f97316;
-    background: #0b0d11;
-    padding: 2px 4px;
-    border-radius: 3px;
-  }
 
   /* Operations Buttons Cell in Product Directory */
   .operations-cell {
@@ -3586,7 +3567,11 @@
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, transform 0.1s ease;
+  }
+
+  .btn-op:active {
+    transform: scale(0.96);
   }
 
   .btn-op.edit {
@@ -3749,7 +3734,11 @@
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out, transform 0.1s ease;
+  }
+
+  .nav-links button:active {
+    transform: scale(0.98);
   }
 
   .nav-links button:hover, .nav-links button.active {
@@ -4065,7 +4054,11 @@
     font-weight: 700;
     cursor: pointer;
     font-size: 13px;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, transform 0.1s ease;
+  }
+
+  .btn:active {
+    transform: scale(0.98);
   }
 
   .btn-primary {
@@ -4210,47 +4203,7 @@
     padding: 16px;
   }
 
-  .challan-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
 
-  .challan-header h4 { margin: 0; font-size: 14px; color: #f8fafc; }
-  .challan-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .stat { display: flex; flex-direction: column; gap: 4px; }
-  .stat span { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700; }
-  .stat strong { font-size: 12px; color: #cbd5e1; }
-
-  .color-blue { color: #60a5fa !important; }
-  .color-green { color: #34d399 !important; }
-
-  .progress-container {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 11px;
-    color: #94a3b8;
-  }
-
-  .progress-bar {
-    height: 6px;
-    background-color: #0b0d11;
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .progress-bar .fill {
-    height: 100%;
-    background-color: #10b981;
-  }
 
   .pill-vat {
     font-family: 'JetBrains Mono', monospace;
@@ -4738,10 +4691,8 @@
       padding: 16px !important;
     }
   }
-
   @media print {
-    /* Hide all main portal headers, sidebars, guidelines and preview controls */
-    body, html {
+    :global(body), :global(html) {
       background-color: #ffffff !important;
       color: #000000 !important;
     }
