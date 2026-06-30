@@ -140,6 +140,11 @@
     showInvoicePrintModal = true;
   }
 
+  let googleClientId = $state('');
+  let isUploadingToDrive = $state(false);
+  let driveSuccess = $state('');
+  let driveError = $state('');
+
   $effect(() => {
     if (typeof document !== 'undefined') {
       if (isDarkMode) {
@@ -789,6 +794,108 @@
   }
 
   // -------------------------------------------------------------
+  // Google Drive API Direct PDF Backup Handlers
+  // -------------------------------------------------------------
+  async function handleBackupToGoogleDrive(invoice: any) {
+    if (!googleClientId.trim()) {
+      alert('Please enter and save your Google Client ID first in the settings panel below.');
+      return;
+    }
+
+    isUploadingToDrive = true;
+    driveSuccess = '';
+    driveError = '';
+
+    if (typeof (window as any).google === 'undefined') {
+      isUploadingToDrive = false;
+      driveError = 'Google OAuth library is still loading. Please try again in 5 seconds.';
+      return;
+    }
+
+    if (typeof (window as any).html2pdf === 'undefined') {
+      isUploadingToDrive = false;
+      driveError = 'PDF conversion library is still loading. Please try again in 5 seconds.';
+      return;
+    }
+
+    try {
+      const client = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id: googleClientId.trim(),
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: async (tokenResponse: any) => {
+          if (tokenResponse.error) {
+            isUploadingToDrive = false;
+            driveError = 'Authentication failed: ' + tokenResponse.error;
+            return;
+          }
+
+          const accessToken = tokenResponse.access_token;
+          
+          try {
+            const element = document.querySelector('.invoice-printable-area');
+            if (!element) {
+              isUploadingToDrive = false;
+              driveError = 'Could not locate print preview element to generate PDF.';
+              return;
+            }
+
+            const opt = {
+              margin: 10,
+              filename: `Invoice_${invoice.id}.pdf`,
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2, useCORS: true },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            const pdfBlob = await (window as any).html2pdf().set(opt).from(element).outputPdf('blob');
+
+            const metadata = {
+              name: `Invoice_${invoice.id}.pdf`,
+              mimeType: 'application/pdf'
+            };
+
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', pdfBlob);
+
+            const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`
+              },
+              body: form
+            });
+
+            if (uploadRes.status === 200 || uploadRes.status === 204) {
+              const resData = await uploadRes.json();
+              driveSuccess = `🎉 Saved to Google Drive! File ID: ${resData.id.substring(0, 10)}...`;
+            } else {
+              const errText = await uploadRes.text();
+              driveError = `Upload Error (${uploadRes.status}): ${errText}`;
+            }
+          } catch (uploadErr: any) {
+            driveError = 'Failed converting or uploading PDF: ' + uploadErr.message;
+          } finally {
+            isUploadingToDrive = false;
+          }
+        }
+      });
+
+      client.requestAccessToken();
+    } catch (err: any) {
+      isUploadingToDrive = false;
+      driveError = 'OAuth Initialization Error: ' + err.message;
+    }
+  }
+
+  function saveGoogleClientId() {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hfst_google_client_id', googleClientId.trim());
+      alert('Google Client ID saved locally successfully!');
+    }
+  }
+
+  // -------------------------------------------------------------
   // Simple "Make Invoice" Flow handler (Direct Billing, No Fancy Steps)
   // -------------------------------------------------------------
   function handleSkuChange(e: Event) {
@@ -1064,6 +1171,11 @@
   function initializeLocalStorage() {
     if (typeof window === 'undefined') return;
     
+    const localGoogleClientId = localStorage.getItem('hfst_google_client_id');
+    if (localGoogleClientId) {
+      googleClientId = localGoogleClientId;
+    }
+    
     // Items
     const localItems = localStorage.getItem('hfst_items');
     if (localItems) {
@@ -1136,6 +1248,21 @@
   }
 
   onMount(async () => {
+    if (typeof document !== 'undefined' && !document.getElementById('google-gsi-client')) {
+      const script = document.createElement('script');
+      script.id = 'google-gsi-client';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+    if (typeof document !== 'undefined' && !document.getElementById('html2pdf-cdn')) {
+      const script = document.createElement('script');
+      script.id = 'html2pdf-cdn';
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.async = true;
+      document.head.appendChild(script);
+    }
     initializeLocalStorage();
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1954,6 +2081,23 @@
                 <p>Currently tracked under local SQLite ledger.</p>
               </div>
             </div>
+
+            <!-- Google Drive Settings card on side -->
+            <div class="card card-narrow" style="margin-top: 15px;">
+              <h2>📁 Google Drive Settings</h2>
+              <div class="standard-form">
+                <p style="font-size: 11px; line-height: 1.4; color: #94a3b8; margin: 0 0 10px 0;">
+                  Save invoices directly to your Google Drive! Enter your Web Client ID from your Google Cloud Console Credentials panel to enable this feature.
+                </p>
+                <label style="font-size: 12px;">
+                  Google OAuth Client ID
+                  <input type="text" bind:value={googleClientId} placeholder="e.g. 123456-abc.apps.googleusercontent.com" style="font-size: 13px !important; padding: 8px !important;" />
+                </label>
+                <button type="button" onclick={saveGoogleClientId} class="btn btn-primary" style="width: 100%; min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">
+                  Save Credentials
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       {/if}
@@ -2035,6 +2179,14 @@
             <h2>🧾 Invoice Receipt Preview</h2>
             <button type="button" onclick={() => showInvoicePrintModal = false} class="btn-close-modal" aria-label="Close Preview">✕</button>
           </div>
+
+          {#if driveSuccess}
+            <div class="alert success no-print" style="margin: 15px 30px 0 30px;">{driveSuccess}</div>
+          {/if}
+          {#if driveError}
+            <div class="alert error no-print" style="margin: 15px 30px 0 30px;">{driveError}</div>
+          {/if}
+
           <div class="modal-body invoice-printable-area" style="background-color: #ffffff; color: #0f172a; padding: 30px; border-radius: 6px;">
             <!-- Invoice Header -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #cbd5e1; padding-bottom: 15px;">
@@ -2113,12 +2265,25 @@
           </div>
 
           <div class="modal-footer no-print" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <div style="font-size: 12px; color: #94a3b8; text-align: left; max-width: 60%;">
-              💡 <strong>Tip:</strong> In the print dialog, select <strong>"Save as PDF"</strong> or <strong>"Save to Google Drive"</strong> to back up this invoice!
+            <div style="font-size: 11px; color: #94a3b8; text-align: left; max-width: 45%;">
+              💡 <strong>Tip:</strong> Save to Google Drive directly using the API button, or via Print -> Save as PDF.
             </div>
-            <div style="display: flex; gap: 10px;">
-              <button onclick={() => window.print()} class="btn btn-primary">🖨 Print / PDF</button>
-              <button onclick={() => showInvoicePrintModal = false} class="btn btn-cancel">Close</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button 
+                type="button" 
+                onclick={() => handleBackupToGoogleDrive(selectedInvoiceForPrint)} 
+                class="btn" 
+                style="background-color: #0f9d58; color: white; display: inline-flex; align-items: center; gap: 6px; min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;"
+                disabled={isUploadingToDrive}
+              >
+                {#if isUploadingToDrive}
+                  ⌛ Uploading...
+                {:else}
+                  📁 Save to Google Drive
+                {/if}
+              </button>
+              <button onclick={() => window.print()} class="btn btn-primary" style="min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">🖨 Print / PDF</button>
+              <button onclick={() => showInvoicePrintModal = false} class="btn btn-cancel" style="min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">Close</button>
             </div>
           </div>
         </div>
