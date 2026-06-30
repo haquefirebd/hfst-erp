@@ -3328,6 +3328,32 @@
       font-size: 14px;
     }
 
+    .card {
+      padding: 16px !important;
+      border-radius: 8px !important;
+      margin-bottom: 16px !important;
+    }
+
+    .guide-box {
+      padding: 12px !important;
+      margin-bottom: 16px !important;
+    }
+
+    .responsive-table-container table {
+      min-width: 650px !important;
+      width: 100%;
+    }
+
+    .form-row-2, .form-row-3 {
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+    }
+
+    .login-card {
+      padding: 24px 16px !important;
+      max-width: 92% !important;
+    }
+
     .standard-form input,
     .standard-form select,
     .standard-form textarea,
