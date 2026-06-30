@@ -3364,13 +3364,20 @@
   }
 
   .dashboard-body {
-    display: grid;
-    grid-template-columns: 2.2fr 1fr;
+    display: flex;
+    flex-wrap: wrap;
     gap: 24px;
     align-items: start;
   }
 
-  .card-wide { grid-column: span 1; }
+  .card-wide {
+    flex: 2.2 1 650px;
+    min-width: 0;
+  }
+  .card-narrow {
+    flex: 1 1 350px;
+    min-width: 0;
+  }
   .card h2 {
     font-size: 18px;
     font-weight: 700;
