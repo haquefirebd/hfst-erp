@@ -868,6 +868,7 @@
 
   function editProject(proj: any) {
     isEditingProject = true;
+    const hasItems = proj.supplied_items_list && proj.supplied_items_list.length > 0;
     inputProjectRecord = {
       id: proj.id,
       name: proj.name,
@@ -877,15 +878,16 @@
       is_refilling_project: !!proj.is_refilling_project,
       contact_number: proj.contact_number || '',
       contact_person: proj.contact_person || '',
-      is_supply_items: !!proj.supplied_items,
-      supplied_items: proj.supplied_items || '',
-      supplied_items_qty: proj.supplied_items_qty || 1
+      is_supply_items: hasItems,
+      supplied_items_list: hasItems 
+        ? proj.supplied_items_list.map((item: any) => ({ sku: item.sku, qty: item.qty }))
+        : [{ sku: '', qty: 1 }]
     };
   }
 
   function resetProjectForm() {
     isEditingProject = false;
-    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items: '', supplied_items_qty: 1 };
+    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items_list: [{ sku: '', qty: 1 }] };
   }
 
   // -------------------------------------------------------------
@@ -2066,7 +2068,15 @@
 
                 <div class="switch-container" style="margin-top: 12px; margin-bottom: 12px;">
                   <label class="switch">
-                    <input type="checkbox" bind:checked={inputProjectRecord.is_supply_items} />
+                    <input 
+                      type="checkbox" 
+                      bind:checked={inputProjectRecord.is_supply_items} 
+                      onchange={() => {
+                        if (inputProjectRecord.is_supply_items && (!inputProjectRecord.supplied_items_list || inputProjectRecord.supplied_items_list.length === 0)) {
+                          inputProjectRecord.supplied_items_list = [{ sku: '', qty: 1 }];
+                        }
+                      }}
+                    />
                     <span class="slider"></span>
                   </label>
                   <span class="switch-label-text">Supply Items</span>
