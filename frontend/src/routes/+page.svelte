@@ -41,6 +41,34 @@
     return Math.round(num).toLocaleString('en-US') + ' BDT';
   }
 
+  function getRefillStatus(project: any) {
+    if (!project.is_refilling_project || !project.starting_date) {
+      return { status: 'n/a', text: 'No reminders', class: 'color-disabled' };
+    }
+    
+    const start = new Date(project.starting_date);
+    if (isNaN(start.getTime())) {
+      return { status: 'n/a', text: 'Invalid date', class: 'color-disabled' };
+    }
+    
+    const nextRefill = new Date(start);
+    nextRefill.setFullYear(start.getFullYear() + 1);
+    
+    const now = new Date();
+    const diffTime = nextRefill.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const dateStr = nextRefill.toISOString().split('T')[0];
+    
+    if (diffDays < 0) {
+      return { status: 'overdue', text: `🔴 Overdue since ${dateStr} (${Math.abs(diffDays)} days ago)`, class: 'badge danger' };
+    } else if (diffDays <= 30) {
+      return { status: 'soon', text: `⚠️ Due soon on ${dateStr} (in ${diffDays} days)`, class: 'badge warning' };
+    } else {
+      return { status: 'ok', text: `🟢 Next Refill: ${dateStr} (in ${diffDays} days)`, class: 'badge success' };
+    }
+  }
+
   // -------------------------------------------------------------
   // Data Model States (Runes Mode)
   // -------------------------------------------------------------
@@ -122,6 +150,12 @@
   let productError = $state('');
   let productSuccess = $state('');
 
+  // Project CRUD Form states
+  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '' });
+  let isEditingProject = $state(false);
+  let projectError = $state('');
+  let projectSuccess = $state('');
+
   // Interactive Form Inputs (Challan based)
   let inputLedger = $state({ sku: 'FM200-CYL-120L', from: 'Uttara Central Depot', to: 'High-Rise Tower Project', qty: 10, type: 'Stock Out', serial: '', batch: 'BAT-FM200-01' });
   let inputQuoteNegotiation = $state({ quote_id: 'Q-2026-001', grand_total: 4100000, notes: 'Client requested further round' });
@@ -182,7 +216,11 @@
           id: p.id,
           name: p.name,
           client: p.client_name,
-          location: p.location
+          location: p.location,
+          starting_date: p.starting_date || '',
+          is_refilling_project: !!p.is_refilling_project,
+          contact_number: p.contact_number || '',
+          contact_person: p.contact_person || ''
         }));
       }
     } catch (e) {}
@@ -595,6 +633,152 @@
     isEditingProduct = false;
     editProductId = '';
     inputProduct = { sku: '', name: '', type: 'Standard', average_consumption_rate: 1.0, lead_time_days: 30, unit: 'Pcs', initial_quantity: 0, selling_price: 0, purchase_price: 0 };
+  }
+
+  // -------------------------------------------------------------
+  // Project Management CRUD Handlers
+  // -------------------------------------------------------------
+  async function handleSaveProject(e: Event) {
+    e.preventDefault();
+    projectError = '';
+    projectSuccess = '';
+
+    const payload = {
+      name: inputProjectRecord.name.trim(),
+      client_name: inputProjectRecord.client_name.trim(),
+      location: inputProjectRecord.location.trim(),
+      starting_date: inputProjectRecord.starting_date || null,
+      is_refilling_project: !!inputProjectRecord.is_refilling_project,
+      contact_number: inputProjectRecord.contact_number.trim() || null,
+      contact_person: inputProjectRecord.contact_person.trim() || null
+    };
+
+    if (!payload.name || !payload.client_name || !payload.location) {
+      projectError = 'Please fill in Name, Company, and Location.';
+      return;
+    }
+
+    const isSandbox = (token === 'hfst_erp_admin_sandbox_token' || !token);
+
+    if (isEditingProject) {
+      const projId = inputProjectRecord.id;
+      if (isSandbox) {
+        const idx = projects.findIndex(p => p.id === projId);
+        if (idx !== -1) {
+          projects[idx] = {
+            id: projId,
+            name: payload.name,
+            client: payload.client_name,
+            location: payload.location,
+            starting_date: payload.starting_date || '',
+            is_refilling_project: payload.is_refilling_project,
+            contact_number: payload.contact_number || '',
+            contact_person: payload.contact_person || ''
+          };
+          projects = [...projects];
+          persistLocalData();
+          projectSuccess = 'Project updated successfully (Sandbox mode).';
+          resetProjectForm();
+        }
+      } else {
+        try {
+          const { error } = await supabase.from('projects').update(payload).eq('id', projId);
+          if (error) {
+            projectError = error.message;
+          } else {
+            projectSuccess = 'Project updated successfully in Supabase!';
+            resetProjectForm();
+            await fetchProjects();
+            persistLocalData();
+          }
+        } catch (err) {
+          projectError = 'Network error: could not update project.';
+        }
+      }
+    } else {
+      const nextProjId = 'proj-' + (projects.length > 0 ? Math.max(...projects.map(p => parseInt(p.id.split('-')[1] || '0'))) + 1 : 1);
+      if (isSandbox) {
+        const newProj = {
+          id: nextProjId,
+          name: payload.name,
+          client: payload.client_name,
+          location: payload.location,
+          starting_date: payload.starting_date || '',
+          is_refilling_project: payload.is_refilling_project,
+          contact_number: payload.contact_number || '',
+          contact_person: payload.contact_person || ''
+        };
+        projects = [...projects, newProj];
+        persistLocalData();
+        projectSuccess = 'Project registered successfully (Sandbox mode).';
+        resetProjectForm();
+      } else {
+        try {
+          const { error } = await supabase.from('projects').insert({
+            id: nextProjId,
+            ...payload
+          });
+          if (error) {
+            projectError = error.message;
+          } else {
+            projectSuccess = 'Project registered successfully in Supabase!';
+            resetProjectForm();
+            await fetchProjects();
+            persistLocalData();
+          }
+        } catch (err) {
+          projectError = 'Network error: could not register project.';
+        }
+      }
+    }
+  }
+
+  async function handleDeleteProject(id: string) {
+    projectError = '';
+    projectSuccess = '';
+    const isSandbox = (token === 'hfst_erp_admin_sandbox_token' || !token);
+    
+    if (isSandbox) {
+      projects = projects.filter(p => p.id !== id);
+      persistLocalData();
+      projectSuccess = 'Project deleted successfully (Sandbox mode).';
+    } else {
+      try {
+        const { error } = await supabase.from('projects').delete().eq('id', id);
+        if (error) {
+          if (error.code === '23503') {
+            projectError = '❌ Deletion Denied: This project has active delivery challans or invoices associated with it.';
+          } else {
+            projectError = error.message;
+          }
+        } else {
+          projectSuccess = 'Project deleted successfully from Supabase!';
+          await fetchProjects();
+          persistLocalData();
+        }
+      } catch (err) {
+        projectError = 'Network error: could not delete project.';
+      }
+    }
+  }
+
+  function editProject(proj: any) {
+    isEditingProject = true;
+    inputProjectRecord = {
+      id: proj.id,
+      name: proj.name,
+      location: proj.location,
+      client_name: proj.client,
+      starting_date: proj.starting_date || '',
+      is_refilling_project: !!proj.is_refilling_project,
+      contact_number: proj.contact_number || '',
+      contact_person: proj.contact_person || ''
+    };
+  }
+
+  function resetProjectForm() {
+    isEditingProject = false;
+    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '' };
   }
 
   // -------------------------------------------------------------
@@ -1037,6 +1221,7 @@
       </button>
       <nav class="nav-links">
         <button class:active={activeTab === 'dashboard'} onclick={() => switchTab('dashboard')}>📊 Summary Dashboard</button>
+        <button class:active={activeTab === 'manage-projects'} onclick={() => switchTab('manage-projects')}>🏢 Manage Projects</button>
         <button class:active={activeTab === 'make-invoice'} onclick={() => switchTab('make-invoice')}>✍ Make Invoice</button>
         <button class:active={activeTab === 'products'} onclick={() => switchTab('products')}>🛠 Add an Item</button>
         <button class:active={activeTab === 'sales'} onclick={() => switchTab('sales')}>💼 Prices & Quotations</button>
@@ -1192,6 +1377,150 @@
               {/if}
             </div>
           {/if}
+
+          <!-- Projects Refilling compliance alerts -->
+          {#if projects.some(p => p.is_refilling_project && getRefillStatus(p).status !== 'ok')}
+            <div class="compliance-reminder-container" style="margin-top: 15px;">
+              <div class="card warning-panel" style="border-left-color: #f97316;">
+                <h3>⚠️ ATTENTION: Fire Extinguisher Refilling Servicing Deadlines</h3>
+                <p>The following customer site installations require cylinder refilling servicing soon or are overdue (based on the 1-year service interval from starting date):</p>
+                <ul style="margin: 8px 0 0 16px; padding: 0; font-size: 13px; line-height: 1.6; color: #cbd5e1;">
+                  {#each projects.filter(p => p.is_refilling_project) as p}
+                    {@const status = getRefillStatus(p)}
+                    {#if status.status !== 'ok'}
+                      <li>
+                        Project <strong>{p.name}</strong> ({p.client}) - <span class={status.class} style="display: inline-block; vertical-align: middle;">{status.text}</span>
+                      </li>
+                    {/if}
+                  {/each}
+                </ul>
+              </div>
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Tab: Manage Projects -->
+      {#if activeTab === 'manage-projects'}
+        <div class="tab-pane">
+          <div class="guide-box">
+            <h4>🏢 Project Directory & Refill Reminder Dashboard</h4>
+            <p>Register client project installations. Enable fire extinguisher refilling reminders to dynamically monitor annual servicing compliance intervals based on your starting dates.</p>
+          </div>
+
+          {#if projectError}
+            <div class="alert error">{projectError}</div>
+          {/if}
+          {#if projectSuccess}
+            <div class="alert success">{projectSuccess}</div>
+          {/if}
+
+          <div class="dashboard-body">
+            <div class="card card-wide">
+              <h2>Registered Project Directory</h2>
+              <div class="responsive-table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Project ID</th>
+                      <th>Project / Site Name</th>
+                      <th>Company Name</th>
+                      <th>Location / Address</th>
+                      <th>Starting Date</th>
+                      <th>Contact Info</th>
+                      <th>Refill Reminders</th>
+                      <th style="text-align: center;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#if projects.length === 0}
+                      <tr>
+                        <td colspan="8" class="text-muted" style="text-align: center; padding: 20px;">No projects registered. Create one using the form on the right!</td>
+                      </tr>
+                    {:else}
+                      {#each projects as proj}
+                        {@const refill = getRefillStatus(proj)}
+                        <tr>
+                          <td><span class="pill-id">{proj.id}</span></td>
+                          <td class="text-bold">{proj.name}</td>
+                          <td>{proj.client}</td>
+                          <td>{proj.location}</td>
+                          <td>{proj.starting_date || 'N/A'}</td>
+                          <td>
+                            {#if proj.contact_person || proj.contact_number}
+                              <div style="font-size: 12px; line-height: 1.4;">
+                                {#if proj.contact_person}<div><strong>Name:</strong> {proj.contact_person}</div>{/if}
+                                {#if proj.contact_number}<div><strong>Ph:</strong> {proj.contact_number}</div>{/if}
+                              </div>
+                            {:else}
+                              <span class="text-muted">N/A</span>
+                            {/if}
+                          </td>
+                          <td>
+                            <span class={refill.class}>{refill.text}</span>
+                          </td>
+                          <td style="text-align: center;">
+                            <div style="display: flex; gap: 6px; justify-content: center;">
+                              <button onclick={() => editProject(proj)} class="btn-op edit">Edit</button>
+                              <button onclick={() => handleDeleteProject(proj.id)} class="btn-op delete">Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      {/each}
+                    {/if}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card card-narrow">
+              <h2>{isEditingProject ? 'Edit Project Details' : 'Register New Project'}</h2>
+              <form onsubmit={handleSaveProject} class="standard-form">
+                <label>
+                  Project / Site Name *
+                  <input type="text" bind:value={inputProjectRecord.name} placeholder="e.g. Dhaka Office Sprinkler Retrofit" required />
+                </label>
+
+                <label>
+                  Company / Client Name *
+                  <input type="text" bind:value={inputProjectRecord.client_name} placeholder="e.g. Standard Chartered Bank" required />
+                </label>
+
+                <label>
+                  Location / Address *
+                  <input type="text" bind:value={inputProjectRecord.location} placeholder="e.g. Gulshan-2, Dhaka" required />
+                </label>
+
+                <div class="form-row-2">
+                  <label>
+                    Starting Date
+                    <input type="date" bind:value={inputProjectRecord.starting_date} />
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 24px;">
+                    <input type="checkbox" bind:checked={inputProjectRecord.is_refilling_project} style="width: auto; min-height: auto; margin: 0;" />
+                    <span>Refilling Reminders</span>
+                  </label>
+                </div>
+
+                <label>
+                  Contact Person Name
+                  <input type="text" bind:value={inputProjectRecord.contact_person} placeholder="e.g. Mr. Rahman (Security Lead)" />
+                </label>
+
+                <label>
+                  Contact Number
+                  <input type="text" bind:value={inputProjectRecord.contact_number} placeholder="e.g. +8801712345678" />
+                </label>
+
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary">{isEditingProject ? 'Save Changes' : 'Register Project'}</button>
+                  {#if isEditingProject}
+                    <button type="button" onclick={resetProjectForm} class="btn btn-cancel">Cancel</button>
+                  {/if}
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       {/if}
 
