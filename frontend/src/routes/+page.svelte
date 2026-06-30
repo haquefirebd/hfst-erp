@@ -132,6 +132,13 @@
   // Compliance alerts visibility toggle
   let showComplianceReminder = $state(false);
   let showUserGuideModal = $state(false);
+  let showInvoicePrintModal = $state(false);
+  let selectedInvoiceForPrint = $state<any>(null);
+
+  function openInvoicePrint(inv: any) {
+    selectedInvoiceForPrint = inv;
+    showInvoicePrintModal = true;
+  }
 
   $effect(() => {
     if (typeof document !== 'undefined') {
@@ -1913,6 +1920,7 @@
                       <th>Total Billed (Inc. VAT)</th>
                       <th>Status</th>
                       <th>Payment Due</th>
+                      <th style="text-align: center;">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1927,6 +1935,9 @@
                         <td class="text-bold">{formatMoney(inv.qty * inv.price * (inv.vat_challan === 'VAT Free (Exempt)' ? 1.0 : 1.15))}</td>
                         <td><span class="badge status-{inv.status.toLowerCase()}">{inv.status}</span></td>
                         <td>{inv.due}</td>
+                        <td style="text-align: center;">
+                          <button onclick={() => openInvoicePrint(inv)} class="btn-op edit" style="min-width: auto; padding: 6px 12px !important; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🖨 Print / PDF</button>
+                        </td>
                       </tr>
                     {/each}
                   </tbody>
@@ -2016,6 +2027,103 @@
         </div>
       {/if}
     </section>
+
+    {#if showInvoicePrintModal && selectedInvoiceForPrint}
+      <div class="modal-backdrop" onclick={() => showInvoicePrintModal = false}>
+        <div class="modal-card user-guide-modal" onclick={(e) => e.stopPropagation()} style="max-width: 800px !important;">
+          <div class="modal-header no-print">
+            <h2>🧾 Invoice Receipt Preview</h2>
+            <button type="button" onclick={() => showInvoicePrintModal = false} class="btn-close-modal" aria-label="Close Preview">✕</button>
+          </div>
+          <div class="modal-body invoice-printable-area" style="background-color: #ffffff; color: #0f172a; padding: 30px; border-radius: 6px;">
+            <!-- Invoice Header -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #cbd5e1; padding-bottom: 15px;">
+              <div>
+                <h1 style="margin: 0; font-size: 24px; color: #1e3a8a; display: flex; align-items: center; gap: 8px;">🔥 HFST Fire Safety</h1>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;">House-44, Road-12, Sector-3, Uttara, Dhaka</p>
+                <p style="margin: 2px 0 0 0; font-size: 13px; color: #475569;">Ph: +8801712345678 | Email: billing@hfsterp.com</p>
+              </div>
+              <div style="text-align: right;">
+                <h2 style="margin: 0; font-size: 20px; color: #c2410c; letter-spacing: 1px;">BILLING RECEIPT</h2>
+                <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569;"><strong>Invoice No:</strong> {selectedInvoiceForPrint.id}</p>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569;"><strong>Date:</strong> {selectedInvoiceForPrint.date}</p>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569;"><strong>Due Date:</strong> {selectedInvoiceForPrint.due}</p>
+              </div>
+            </div>
+
+            <!-- Bill To -->
+            <div style="margin-bottom: 25px; display: flex; justify-content: space-between;">
+              <div>
+                <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Bill To:</h3>
+                <p style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">{selectedInvoiceForPrint.customer_name || (selectedInvoiceForPrint.project.startsWith('Direct Sale: ') ? selectedInvoiceForPrint.project.substring(13) : selectedInvoiceForPrint.project)}</p>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;"><strong>Billing Reference:</strong> {selectedInvoiceForPrint.challan}</p>
+              </div>
+              <div style="text-align: right;">
+                <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Status:</h3>
+                <span class="badge status-{selectedInvoiceForPrint.status.toLowerCase()}" style="display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px;">{selectedInvoiceForPrint.status}</span>
+              </div>
+            </div>
+
+            <!-- Items Table -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0; background-color: #f8fafc;">
+                  <th style="padding: 10px; text-align: left; color: #475569; font-weight: 700;">Description</th>
+                  <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 80px;">Qty</th>
+                  <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 120px;">Unit Price</th>
+                  <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 140px;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 12px 10px; color: #0f172a;">
+                    Fire Safety Equipment supply & services (Reference: {selectedInvoiceForPrint.challan})
+                    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Compliance: {selectedInvoiceForPrint.vat_challan}</div>
+                  </td>
+                  <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatQty(selectedInvoiceForPrint.qty)}</td>
+                  <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatMoney(selectedInvoiceForPrint.price)}</td>
+                  <td style="padding: 12px 10px; text-align: right; color: #0f172a; font-weight: 700;">{formatMoney(selectedInvoiceForPrint.qty * selectedInvoiceForPrint.price)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Totals -->
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+              <div style="width: 280px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
+                  <span>Subtotal:</span>
+                  <span style="font-weight: 700; color: #0f172a;">{formatMoney(selectedInvoiceForPrint.qty * selectedInvoiceForPrint.price)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
+                  <span>NBR VAT (15%):</span>
+                  <span style="font-weight: 700; color: #0f172a;">{formatMoney(selectedInvoiceForPrint.vat_challan === 'VAT Free (Exempt)' ? 0 : (selectedInvoiceForPrint.qty * selectedInvoiceForPrint.price * 0.15))}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; font-weight: 800; color: #1e3a8a; border-top: 2px double #cbd5e1; margin-top: 4px;">
+                  <span>Total Payable:</span>
+                  <span>{formatMoney(selectedInvoiceForPrint.qty * selectedInvoiceForPrint.price * (selectedInvoiceForPrint.vat_challan === 'VAT Free (Exempt)' ? 1.0 : 1.15))}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer terms -->
+            <div style="border-top: 1px solid #cbd5e1; padding-top: 15px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5;">
+              <p style="margin: 0;">Certified under BNBC safety codes & standard fire protection guidelines.</p>
+              <p style="margin: 2px 0 0 0; font-weight: 700; color: #475569;">Thank you for your business!</p>
+            </div>
+          </div>
+
+          <div class="modal-footer no-print" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div style="font-size: 12px; color: #94a3b8; text-align: left; max-width: 60%;">
+              💡 <strong>Tip:</strong> In the print dialog, select <strong>"Save as PDF"</strong> or <strong>"Save to Google Drive"</strong> to back up this invoice!
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button onclick={() => window.print()} class="btn btn-primary">🖨 Print / PDF</button>
+              <button onclick={() => showInvoicePrintModal = false} class="btn btn-cancel">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
 
     {#if showUserGuideModal}
       <div class="modal-backdrop" onclick={() => showUserGuideModal = false}>
@@ -3714,6 +3822,45 @@
       max-height: 90vh !important;
       margin: 10px auto;
       padding: 16px !important;
+    }
+  }
+
+  @media print {
+    /* Hide all main portal headers, sidebars, guidelines and preview controls */
+    body, html {
+      background-color: #ffffff !important;
+      color: #000000 !important;
+    }
+    .sidebar, .content-header, .no-print, .modal-backdrop, .modal-header, .modal-footer, .guide-box, .btn-mobile-menu-toggle {
+      display: none !important;
+      visibility: hidden !important;
+    }
+    main, .erp-container, .main-content, .tab-pane, .dashboard-body {
+      display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      width: 100% !important;
+      background: none !important;
+    }
+    .modal-card {
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-shadow: none !important;
+      border: none !important;
+      background: #ffffff !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .invoice-printable-area {
+      display: block !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #ffffff !important;
+      color: #000000 !important;
     }
   }
 </style>
