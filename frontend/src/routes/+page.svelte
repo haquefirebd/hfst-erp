@@ -2098,7 +2098,7 @@
                           <input 
                             type="text" 
                             list="inventory-items-datalist" 
-                            bind:value={row.sku} 
+                            bind:value={inputProjectRecord.supplied_items_list[idx].sku} 
                             onchange={(e) => handleCheckInventoryItem(idx, e)}
                             placeholder="e.g. FM200-CYL-120L" 
                             required
@@ -2110,7 +2110,7 @@
                             <input 
                               type="number" 
                               step="0.01" 
-                              bind:value={row.qty} 
+                              bind:value={inputProjectRecord.supplied_items_list[idx].qty} 
                               min="0.01" 
                               required 
                             />
