@@ -3222,7 +3222,7 @@
 
   .erp-container {
     display: grid;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 260px minmax(0, 1fr);
     min-height: 100vh;
   }
 
@@ -3329,6 +3329,8 @@
   .main-content {
     padding: 40px;
     overflow-y: auto;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .content-header {
