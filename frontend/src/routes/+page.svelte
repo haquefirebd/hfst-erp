@@ -202,6 +202,10 @@
   let quickAddItemUnit = $state('Pcs');
   let quickAddItemType = $state('Standard');
 
+  // Watch Inventory stock quick modifier states
+  let editingStockSku = $state('');
+  let tempStockValue = $state(0);
+
   // Interactive Form Inputs (Challan based)
   let inputLedger = $state({ sku: 'FM200-CYL-120L', from: 'Uttara Central Depot', to: 'High-Rise Tower Project', qty: 10, type: 'Stock Out', serial: '', batch: 'BAT-FM200-01' });
   let inputQuoteNegotiation = $state({ quote_id: 'Q-2026-001', grand_total: 4100000, notes: 'Client requested further round' });
@@ -231,6 +235,45 @@
   // -------------------------------------------------------------
   // Actions
   // -------------------------------------------------------------
+  async function updateStockLevel(item: any, targetStock: number) {
+    if (targetStock < 0) {
+      alert('Stock level cannot be negative.');
+      return;
+    }
+
+    const offset = item.stock - (item.initial_quantity || 0);
+    const newInitialQty = targetStock - offset;
+
+    const isSandbox = (token === 'hfst_erp_admin_sandbox_token' || !token);
+    if (isSandbox) {
+      const idx = items.findIndex(i => i.sku === item.sku);
+      if (idx !== -1) {
+        items[idx].initial_quantity = newInitialQty;
+        items = [...items];
+        persistLocalData();
+        productSuccess = `Stock for ${item.sku} adjusted to ${targetStock} successfully (Sandbox).`;
+        setTimeout(() => productSuccess = '', 4000);
+      }
+    } else {
+      try {
+        const { error } = await supabase
+          .from('items')
+          .update({ initial_quantity: newInitialQty })
+          .eq('sku', item.sku);
+        if (error) {
+          alert('Error adjusting stock: ' + error.message);
+        } else {
+          await fetchItems();
+          persistLocalData();
+          productSuccess = `Stock for ${item.sku} adjusted to ${targetStock} successfully in Supabase!`;
+          setTimeout(() => productSuccess = '', 4000);
+        }
+      } catch (err: any) {
+        alert('Network error adjusting stock: ' + err.message);
+      }
+    }
+  }
+
   async function fetchItems() {
     try {
       const { data, error } = await supabase.from('items').select('*').order('sku');
@@ -2518,13 +2561,75 @@
                         <td><code>{item.sku}</code></td>
                         <td class="text-bold">{item.name}</td>
                         <td><span class="pill-id">{item.unit || 'Pcs'}</span></td>
-                        <td>
-                          <span class="text-bold">{formatQty(item.stock)}</span>
-                          {#if item.stock <= (item.reorder_point || (item.average_consumption_rate * item.lead_time_days))}
-                            <span class="badge danger" style="margin-left: 8px;">Low Stock</span>
-                          {:else}
-                            <span class="badge success" style="margin-left: 8px;">Safe</span>
-                          {/if}
+                        <td style="vertical-align: middle;">
+                          <div style="display: flex; align-items: center; gap: 8px;">
+                            {#if editingStockSku === item.sku}
+                              <input 
+                                type="number" 
+                                bind:value={tempStockValue} 
+                                style="width: 65px; padding: 4px 6px; border-radius: 4px; background: #1e293b; color: #fff; border: 1px solid #f97316; font-size: 13px;" 
+                                min="0"
+                                required
+                              />
+                              <button 
+                                type="button" 
+                                onclick={() => {
+                                  updateStockLevel(item, tempStockValue);
+                                  editingStockSku = '';
+                                }} 
+                                class="btn-op edit" 
+                                style="padding: 4px 8px; background-color: #10b981; color: #fff; font-size: 11px;"
+                              >
+                                Save
+                              </button>
+                              <button 
+                                type="button" 
+                                onclick={() => editingStockSku = ''} 
+                                class="btn-op delete" 
+                                style="padding: 4px 8px; font-size: 11px;"
+                              >
+                                Cancel
+                              </button>
+                            {:else}
+                              <button 
+                                type="button" 
+                                onclick={() => updateStockLevel(item, Math.max(0, item.stock - 1))} 
+                                class="btn-op delete" 
+                                style="padding: 2px 8px; font-weight: 800; font-size: 14px; border-radius: 4px; line-height: 1;"
+                                title="Decrease Stock by 1"
+                              >
+                                −
+                              </button>
+                              
+                              <span 
+                                class="text-bold" 
+                                style="font-size: 15px; min-width: 24px; text-align: center; cursor: pointer; border-bottom: 1px dashed #475569;"
+                                onclick={() => {
+                                  editingStockSku = item.sku;
+                                  tempStockValue = Math.round(item.stock);
+                                }}
+                                title="Click to edit custom stock amount"
+                              >
+                                {formatQty(item.stock)}
+                              </span>
+
+                              <button 
+                                type="button" 
+                                onclick={() => updateStockLevel(item, item.stock + 1)} 
+                                class="btn-op edit" 
+                                style="padding: 2px 8px; font-weight: 800; font-size: 14px; border-radius: 4px; line-height: 1;"
+                                title="Increase Stock by 1"
+                              >
+                                +
+                              </button>
+
+                              {#if item.stock <= (item.reorder_point || (item.average_consumption_rate * item.lead_time_days))}
+                                <span class="badge danger">Low Stock</span>
+                              {:else}
+                                <span class="badge success">Safe</span>
+                              {/if}
+                            {/if}
+                          </div>
                         </td>
                         <td>{formatMoney(item.purchase_price || 0)}</td>
                         <td>{formatMoney(item.selling_price || 0)}</td>
