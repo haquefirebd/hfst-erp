@@ -141,6 +141,7 @@
   }
 
   let googleClientId = $state('');
+  let googleLoginHint = $state('redshieldsafety@gmail.com');
   let isUploadingToDrive = $state(false);
   let driveSuccess = $state('');
   let driveError = $state('');
@@ -820,7 +821,7 @@
     }
 
     try {
-      const client = (window as any).google.accounts.oauth2.initTokenClient({
+      const clientConfig: any = {
         client_id: googleClientId.trim(),
         scope: 'https://www.googleapis.com/auth/drive.file',
         callback: async (tokenResponse: any) => {
@@ -880,8 +881,13 @@
             isUploadingToDrive = false;
           }
         }
-      });
+      };
 
+      if (googleLoginHint.trim()) {
+        clientConfig.hint = googleLoginHint.trim();
+      }
+
+      const client = (window as any).google.accounts.oauth2.initTokenClient(clientConfig);
       client.requestAccessToken();
     } catch (err: any) {
       isUploadingToDrive = false;
@@ -892,7 +898,8 @@
   function saveGoogleClientId() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('hfst_google_client_id', googleClientId.trim());
-      alert('Google Client ID saved locally successfully!');
+      localStorage.setItem('hfst_google_login_hint', googleLoginHint.trim());
+      alert('Google API Settings saved locally successfully!');
     }
   }
 
@@ -922,7 +929,7 @@
     await tick();
 
     try {
-      const client = (window as any).google.accounts.oauth2.initTokenClient({
+      const clientConfig: any = {
         client_id: googleClientId.trim(),
         scope: 'https://www.googleapis.com/auth/drive.file',
         callback: async (tokenResponse: any) => {
@@ -985,8 +992,13 @@
             activeInvoiceForSilentExport = null;
           }
         }
-      });
+      };
 
+      if (googleLoginHint.trim()) {
+        clientConfig.hint = googleLoginHint.trim();
+      }
+
+      const client = (window as any).google.accounts.oauth2.initTokenClient(clientConfig);
       client.requestAccessToken();
     } catch (err: any) {
       isUploadingToDrive = false;
@@ -1274,6 +1286,11 @@
     const localGoogleClientId = localStorage.getItem('hfst_google_client_id');
     if (localGoogleClientId) {
       googleClientId = localGoogleClientId;
+    }
+
+    const localGoogleLoginHint = localStorage.getItem('hfst_google_login_hint');
+    if (localGoogleLoginHint) {
+      googleLoginHint = localGoogleLoginHint;
     }
     
     // Items
@@ -2210,6 +2227,10 @@
                 <label style="font-size: 12px;">
                   Google OAuth Client ID
                   <input type="text" bind:value={googleClientId} placeholder="e.g. 123456-abc.apps.googleusercontent.com" style="font-size: 13px !important; padding: 8px !important;" />
+                </label>
+                <label style="font-size: 12px; margin-top: 6px;">
+                  Target Gmail Account (Auto-fill)
+                  <input type="email" bind:value={googleLoginHint} placeholder="e.g. redshieldsafety@gmail.com" style="font-size: 13px !important; padding: 8px !important;" />
                 </label>
                 <button type="button" onclick={saveGoogleClientId} class="btn btn-primary" style="width: 100%; min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">
                   Save Credentials
