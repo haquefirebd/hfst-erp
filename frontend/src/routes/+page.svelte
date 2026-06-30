@@ -2038,10 +2038,13 @@
                     Starting Date
                     <input type="date" bind:value={inputProjectRecord.starting_date} />
                   </label>
-                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 24px;">
-                    <input type="checkbox" bind:checked={inputProjectRecord.is_refilling_project} style="width: auto; min-height: auto; margin: 0;" />
-                    <span>Refilling Reminders</span>
-                  </label>
+                  <div class="switch-container" style="margin-top: 24px;">
+                    <label class="switch">
+                      <input type="checkbox" bind:checked={inputProjectRecord.is_refilling_project} />
+                      <span class="slider"></span>
+                    </label>
+                    <span class="switch-label-text">Refilling Reminders</span>
+                  </div>
                 </div>
 
                 <label>
@@ -2061,11 +2064,12 @@
                   />
                 </label>
 
-                <div style="margin-top: 12px; margin-bottom: 12px;">
-                  <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" bind:checked={inputProjectRecord.is_supply_items} style="width: auto; min-height: auto; margin: 0;" />
-                    <strong>Supply Items</strong>
+                <div class="switch-container" style="margin-top: 12px; margin-bottom: 12px;">
+                  <label class="switch">
+                    <input type="checkbox" bind:checked={inputProjectRecord.is_supply_items} />
+                    <span class="slider"></span>
                   </label>
+                  <span class="switch-label-text">Supply Items</span>
                 </div>
 
                 {#if inputProjectRecord.is_supply_items}
@@ -3928,6 +3932,87 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+
+  /* Custom Switch Toggle Styles */
+  .switch-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    padding: 6px 0;
+  }
+
+  .switch-label-text {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 22px;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #232a35;
+    transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 22px;
+    border: 1px solid #334155;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #94a3b8;
+    transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+  }
+
+  input:checked + .slider {
+    background-color: rgba(249, 115, 22, 0.15);
+    border-color: #f97316;
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(22px);
+    background-color: #f97316;
+  }
+
+  :global(body.light-mode) .slider {
+    background-color: #e2e8f0;
+    border-color: #cbd5e1;
+  }
+  :global(body.light-mode) .slider:before {
+    background-color: #64748b;
+  }
+  :global(body.light-mode) input:checked + .slider {
+    background-color: rgba(249, 115, 22, 0.1);
+    border-color: #f97316;
+  }
+  :global(body.light-mode) input:checked + .slider:before {
+    background-color: #f97316;
   }
 
   .standard-form label {
