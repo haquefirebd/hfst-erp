@@ -188,7 +188,7 @@
   let productSuccess = $state('');
 
   // Project CRUD Form states
-  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items: '' });
+  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items: '', supplied_items_qty: 1 });
   let isEditingProject = $state(false);
   let projectError = $state('');
   let projectSuccess = $state('');
@@ -205,6 +205,11 @@
   // Watch Inventory stock quick modifier states
   let editingStockSku = $state('');
   let tempStockValue = $state(0);
+
+  // Derived unit of currently selected supply item
+  let selectedSupplyItemUnit = $derived(
+    items.find(i => i.sku.toLowerCase() === (inputProjectRecord.supplied_items || '').toLowerCase())?.unit || 'Pcs'
+  );
 
   // Interactive Form Inputs (Challan based)
   let inputLedger = $state({ sku: 'FM200-CYL-120L', from: 'Uttara Central Depot', to: 'High-Rise Tower Project', qty: 10, type: 'Stock Out', serial: '', batch: 'BAT-FM200-01' });
@@ -301,17 +306,21 @@
     try {
       const { data } = await supabase.from('projects').select('*').order('name');
       if (data) {
-        projects = data.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          client: p.client_name,
-          location: p.location,
-          starting_date: p.starting_date || '',
-          is_refilling_project: !!p.is_refilling_project,
-          contact_number: p.contact_number || '',
-          contact_person: p.contact_person || '',
-          supplied_items: p.supplied_items || ''
-        }));
+        projects = data.map((p: any) => {
+          const parts = (p.supplied_items || '').split(':');
+          return {
+            id: p.id,
+            name: p.name,
+            client: p.client_name,
+            location: p.location,
+            starting_date: p.starting_date || '',
+            is_refilling_project: !!p.is_refilling_project,
+            contact_number: p.contact_number || '',
+            contact_person: p.contact_person || '',
+            supplied_items: parts[0] || '',
+            supplied_items_qty: parseFloat(parts[1] || '1')
+          };
+        });
       }
     } catch (e) {}
   }
@@ -741,7 +750,9 @@
       is_refilling_project: !!inputProjectRecord.is_refilling_project,
       contact_number: inputProjectRecord.contact_number.trim() || null,
       contact_person: inputProjectRecord.contact_person.trim() || null,
-      supplied_items: inputProjectRecord.is_supply_items ? (inputProjectRecord.supplied_items || '').trim() : null
+      supplied_items: inputProjectRecord.is_supply_items 
+        ? `${(inputProjectRecord.supplied_items || '').trim()}:${inputProjectRecord.supplied_items_qty || 1}` 
+        : null
     };
 
     if (!payload.name || !payload.client_name || !payload.location) {
@@ -756,6 +767,7 @@
       if (isSandbox) {
         const idx = projects.findIndex(p => p.id === projId);
         if (idx !== -1) {
+          const parts = (payload.supplied_items || '').split(':');
           projects[idx] = {
             id: projId,
             name: payload.name,
@@ -765,7 +777,8 @@
             is_refilling_project: payload.is_refilling_project,
             contact_number: payload.contact_number || '',
             contact_person: payload.contact_person || '',
-            supplied_items: payload.supplied_items || ''
+            supplied_items: parts[0] || '',
+            supplied_items_qty: parseFloat(parts[1] || '1')
           };
           projects = [...projects];
           persistLocalData();
@@ -790,6 +803,7 @@
     } else {
       const nextProjId = 'proj-' + (projects.length > 0 ? Math.max(...projects.map(p => parseInt(p.id.split('-')[1] || '0'))) + 1 : 1);
       if (isSandbox) {
+        const parts = (payload.supplied_items || '').split(':');
         const newProj = {
           id: nextProjId,
           name: payload.name,
@@ -799,7 +813,8 @@
           is_refilling_project: payload.is_refilling_project,
           contact_number: payload.contact_number || '',
           contact_person: payload.contact_person || '',
-          supplied_items: payload.supplied_items || ''
+          supplied_items: parts[0] || '',
+          supplied_items_qty: parseFloat(parts[1] || '1')
         };
         projects = [...projects, newProj];
         persistLocalData();
@@ -867,13 +882,14 @@
       contact_number: proj.contact_number || '',
       contact_person: proj.contact_person || '',
       is_supply_items: !!proj.supplied_items,
-      supplied_items: proj.supplied_items || ''
+      supplied_items: proj.supplied_items || '',
+      supplied_items_qty: proj.supplied_items_qty || 1
     };
   }
 
   function resetProjectForm() {
     isEditingProject = false;
-    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items: '' };
+    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items: '', supplied_items_qty: 1 };
   }
 
   // -------------------------------------------------------------
@@ -1958,6 +1974,9 @@
                           <td>
                             {#if proj.supplied_items}
                               <code class="code-sku">{proj.supplied_items}</code>
+                              <span style="font-size: 11px; color: #94a3b8; margin-left: 6px; font-weight: 600;">
+                                ({formatQty(proj.supplied_items_qty)} {items.find(i => i.sku.toLowerCase() === proj.supplied_items.toLowerCase())?.unit || 'Pcs'})
+                              </span>
                             {:else}
                               <span class="text-muted">None</span>
                             {/if}
@@ -2046,6 +2065,28 @@
                       {/each}
                     </datalist>
                   </label>
+                  <div class="form-row-2" style="margin-top: 10px;">
+                    <label>
+                      Supply Quantity *
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        bind:value={inputProjectRecord.supplied_items_qty} 
+                        min="0.01" 
+                        required 
+                      />
+                    </label>
+                    <label>
+                      Item Unit (Auto)
+                      <input 
+                        type="text" 
+                        value={selectedSupplyItemUnit} 
+                        readonly 
+                        disabled 
+                        style="background-color: #1e293b; color: #94a3b8; cursor: not-allowed;" 
+                      />
+                    </label>
+                  </div>
                 {/if}
 
                 <div class="form-actions">
