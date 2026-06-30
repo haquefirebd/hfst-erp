@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { supabase } from '$lib/supabaseClient';
 
   function isNetworkError(error: any): boolean {
@@ -144,6 +144,7 @@
   let isUploadingToDrive = $state(false);
   let driveSuccess = $state('');
   let driveError = $state('');
+  let activeInvoiceForSilentExport = $state<any>(null);
 
   $effect(() => {
     if (typeof document !== 'undefined') {
@@ -892,6 +893,105 @@
     if (typeof window !== 'undefined') {
       localStorage.setItem('hfst_google_client_id', googleClientId.trim());
       alert('Google Client ID saved locally successfully!');
+    }
+  }
+
+  async function handleDirectDriveUpload(invoice: any) {
+    if (!googleClientId.trim()) {
+      alert('Please enter and save your Google Client ID first in the settings panel.');
+      return;
+    }
+
+    isUploadingToDrive = true;
+    driveSuccess = '';
+    driveError = '';
+
+    if (typeof (window as any).google === 'undefined') {
+      isUploadingToDrive = false;
+      driveError = 'Google OAuth library is still loading. Please try again in a few seconds.';
+      return;
+    }
+
+    if (typeof (window as any).html2pdf === 'undefined') {
+      isUploadingToDrive = false;
+      driveError = 'PDF conversion library is still loading. Please try again in a few seconds.';
+      return;
+    }
+
+    activeInvoiceForSilentExport = invoice;
+    await tick();
+
+    try {
+      const client = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id: googleClientId.trim(),
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: async (tokenResponse: any) => {
+          if (tokenResponse.error) {
+            isUploadingToDrive = false;
+            driveError = 'Authentication failed: ' + tokenResponse.error;
+            activeInvoiceForSilentExport = null;
+            return;
+          }
+
+          const accessToken = tokenResponse.access_token;
+          
+          try {
+            const element = document.getElementById('silent-invoice-export-container');
+            if (!element) {
+              isUploadingToDrive = false;
+              driveError = 'Could not locate background invoice template.';
+              activeInvoiceForSilentExport = null;
+              return;
+            }
+
+            const opt = {
+              margin: 10,
+              filename: `Invoice_${invoice.id}.pdf`,
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2, useCORS: true },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            const pdfBlob = await (window as any).html2pdf().set(opt).from(element).outputPdf('blob');
+
+            const metadata = {
+              name: `Invoice_${invoice.id}.pdf`,
+              mimeType: 'application/pdf'
+            };
+
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', pdfBlob);
+
+            const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`
+              },
+              body: form
+            });
+
+            if (uploadRes.status === 200 || uploadRes.status === 204) {
+              const resData = await uploadRes.json();
+              driveSuccess = `🎉 Invoice ${invoice.id} successfully saved directly to Google Drive! (ID: ${resData.id.substring(0, 10)}...)`;
+            } else {
+              const errText = await uploadRes.text();
+              driveError = `Upload Error (${uploadRes.status}): ${errText}`;
+            }
+          } catch (uploadErr: any) {
+            driveError = 'Direct Upload Error: ' + uploadErr.message;
+          } finally {
+            isUploadingToDrive = false;
+            activeInvoiceForSilentExport = null;
+          }
+        }
+      });
+
+      client.requestAccessToken();
+    } catch (err: any) {
+      isUploadingToDrive = false;
+      driveError = 'OAuth Direct Init Error: ' + err.message;
+      activeInvoiceForSilentExport = null;
     }
   }
 
@@ -2030,6 +2130,13 @@
             <p>Below is a log of all invoices that have been issued to clients. You can click on the `Make Invoice` tab in the sidebar to generate a new one.</p>
           </div>
 
+          {#if driveSuccess}
+            <div class="alert success" style="margin-bottom: 20px;">{driveSuccess}</div>
+          {/if}
+          {#if driveError}
+            <div class="alert error" style="margin-bottom: 20px;">{driveError}</div>
+          {/if}
+
           <div class="dashboard-body">
             <!-- Invoices List -->
             <div class="card card-wide">
@@ -2063,7 +2170,18 @@
                         <td><span class="badge status-{inv.status.toLowerCase()}">{inv.status}</span></td>
                         <td>{inv.due}</td>
                         <td style="text-align: center;">
-                          <button onclick={() => openInvoicePrint(inv)} class="btn-op edit" style="min-width: auto; padding: 6px 12px !important; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🖨 Print / PDF</button>
+                          <div style="display: inline-flex; gap: 8px; justify-content: center; width: 100%;">
+                            <button onclick={() => openInvoicePrint(inv)} class="btn-op edit" style="min-width: auto; padding: 6px 12px !important; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🖨 Print</button>
+                            <button 
+                              type="button" 
+                              onclick={() => handleDirectDriveUpload(inv)} 
+                              class="btn" 
+                              style="background-color: #0f9d58; color: white; border: none; border-radius: 4px; min-width: auto; padding: 6px 12px !important; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 13px !important; cursor: pointer;"
+                              disabled={isUploadingToDrive}
+                            >
+                              📁 GDrive
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     {/each}
@@ -2329,6 +2447,86 @@
             <h3>7. Theme Settings</h3>
             <p>Click the <strong>☀️ Light Mode / 🌙 Dark Mode</strong> button next to the system status badge to switch visual themes at any time. Dark mode is optimized for dark warehouses, while light mode is designed for bright offices.</p>
           </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Invisible container for silent PDF export -->
+    {#if activeInvoiceForSilentExport}
+      <div style="position: absolute; left: -9999px; top: -9999px; width: 800px; background-color: #ffffff; color: #0f172a; padding: 30px;" id="silent-invoice-export-container">
+        <!-- Invoice Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #cbd5e1; padding-bottom: 15px;">
+          <div>
+            <h1 style="margin: 0; font-size: 24px; color: #1e3a8a; display: flex; align-items: center; gap: 8px;">🔥 HFST Fire Safety</h1>
+            <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;">House-44, Road-12, Sector-3, Uttara, Dhaka</p>
+            <p style="margin: 2px 0 0 0; font-size: 13px; color: #475569;">Ph: +8801712345678 | Email: billing@hfsterp.com</p>
+          </div>
+          <div style="text-align: right;">
+            <h2 style="margin: 0; font-size: 20px; color: #c2410c; letter-spacing: 1px;">BILLING RECEIPT</h2>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569;"><strong>Invoice No:</strong> {activeInvoiceForSilentExport.id}</p>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569;"><strong>Date:</strong> {activeInvoiceForSilentExport.date}</p>
+            <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569;"><strong>Due Date:</strong> {activeInvoiceForSilentExport.due}</p>
+          </div>
+        </div>
+
+        <!-- Bill To -->
+        <div style="margin-bottom: 25px; display: flex; justify-content: space-between;">
+          <div>
+            <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Bill To:</h3>
+            <p style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">{activeInvoiceForSilentExport.customer_name || (activeInvoiceForSilentExport.project.startsWith('Direct Sale: ') ? activeInvoiceForSilentExport.project.substring(13) : activeInvoiceForSilentExport.project)}</p>
+            <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;"><strong>Billing Reference:</strong> {activeInvoiceForSilentExport.challan}</p>
+          </div>
+          <div style="text-align: right;">
+            <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Status:</h3>
+            <span class="badge status-{activeInvoiceForSilentExport.status.toLowerCase()}" style="display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px;">{activeInvoiceForSilentExport.status}</span>
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #e2e8f0; background-color: #f8fafc;">
+              <th style="padding: 10px; text-align: left; color: #475569; font-weight: 700;">Description</th>
+              <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 80px;">Qty</th>
+              <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 120px;">Unit Price</th>
+              <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 140px;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 12px 10px; color: #0f172a;">
+                Fire Safety Equipment supply & services (Reference: {activeInvoiceForSilentExport.challan})
+                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Compliance: {activeInvoiceForSilentExport.vat_challan}</div>
+              </td>
+              <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatQty(activeInvoiceForSilentExport.qty)}</td>
+              <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.price)}</td>
+              <td style="padding: 12px 10px; text-align: right; color: #0f172a; font-weight: 700;">{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Totals -->
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+          <div style="width: 280px; font-size: 13px;">
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
+              <span>Subtotal:</span>
+              <span style="font-weight: 700; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
+              <span>NBR VAT (15%):</span>
+              <span style="font-weight: 700; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.vat_challan === 'VAT Free (Exempt)' ? 0 : (activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price * 0.15))}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; font-weight: 800; color: #1e3a8a; border-top: 2px double #cbd5e1; margin-top: 4px;">
+              <span>Total Payable:</span>
+              <span>{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price * (activeInvoiceForSilentExport.vat_challan === 'VAT Free (Exempt)' ? 1.0 : 1.15))}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer terms -->
+        <div style="border-top: 1px solid #cbd5e1; padding-top: 15px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5;">
+          <p style="margin: 0;">Certified under BNBC safety codes & standard fire protection guidelines.</p>
+          <p style="margin: 2px 0 0 0; font-weight: 700; color: #475569;">Thank you for your business!</p>
         </div>
       </div>
     {/if}
