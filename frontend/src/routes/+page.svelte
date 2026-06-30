@@ -142,6 +142,7 @@
 
   let googleClientId = $state('');
   let googleLoginHint = $state('redshieldsafety@gmail.com');
+  let googleAccessToken = $state('');
   let isUploadingToDrive = $state(false);
   let driveSuccess = $state('');
   let driveError = $state('');
@@ -798,6 +799,75 @@
   // -------------------------------------------------------------
   // Google Drive API Direct PDF Backup Handlers
   // -------------------------------------------------------------
+  // -------------------------------------------------------------
+  // Google Drive API Direct PDF Backup Handlers
+  // -------------------------------------------------------------
+  async function uploadInvoiceToDrive(invoice: any, accessToken: string, isSilent: boolean) {
+    if (isSilent) {
+      activeInvoiceForSilentExport = invoice;
+      await tick();
+    }
+
+    try {
+      const element = isSilent 
+        ? document.getElementById('silent-invoice-export-container')
+        : document.querySelector('.invoice-printable-area');
+
+      if (!element) {
+        isUploadingToDrive = false;
+        driveError = 'Could not locate the invoice container template for PDF generation.';
+        activeInvoiceForSilentExport = null;
+        return;
+      }
+
+      const opt = {
+        margin: 10,
+        filename: `Invoice_${invoice.id}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      const pdfBlob = await (window as any).html2pdf().set(opt).from(element).outputPdf('blob');
+
+      const metadata = {
+        name: `Invoice_${invoice.id}.pdf`,
+        mimeType: 'application/pdf'
+      };
+
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', pdfBlob);
+
+      const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: form
+      });
+
+      if (uploadRes.status === 200 || uploadRes.status === 204) {
+        const resData = await uploadRes.json();
+        driveSuccess = `🎉 Invoice ${invoice.id} successfully uploaded to Google Drive! (File ID: ${resData.id.substring(0, 10)}...)`;
+      } else {
+        const errText = await uploadRes.text();
+        driveError = `Upload Error (${uploadRes.status}): ${errText}`;
+        if (uploadRes.status === 401) {
+          googleAccessToken = '';
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem('hfst_google_access_token');
+          }
+        }
+      }
+    } catch (uploadErr: any) {
+      driveError = 'Failed converting or uploading PDF: ' + uploadErr.message;
+    } finally {
+      isUploadingToDrive = false;
+      activeInvoiceForSilentExport = null;
+    }
+  }
+
   async function handleBackupToGoogleDrive(invoice: any) {
     if (!googleClientId.trim()) {
       alert('Please enter and save your Google Client ID first in the settings panel below.');
@@ -807,6 +877,11 @@
     isUploadingToDrive = true;
     driveSuccess = '';
     driveError = '';
+
+    if (googleAccessToken) {
+      await uploadInvoiceToDrive(invoice, googleAccessToken, false);
+      return;
+    }
 
     if (typeof (window as any).google === 'undefined') {
       isUploadingToDrive = false;
@@ -831,55 +906,12 @@
             return;
           }
 
-          const accessToken = tokenResponse.access_token;
-          
-          try {
-            const element = document.querySelector('.invoice-printable-area');
-            if (!element) {
-              isUploadingToDrive = false;
-              driveError = 'Could not locate print preview element to generate PDF.';
-              return;
-            }
-
-            const opt = {
-              margin: 10,
-              filename: `Invoice_${invoice.id}.pdf`,
-              image: { type: 'jpeg', quality: 0.98 },
-              html2canvas: { scale: 2, useCORS: true },
-              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            const pdfBlob = await (window as any).html2pdf().set(opt).from(element).outputPdf('blob');
-
-            const metadata = {
-              name: `Invoice_${invoice.id}.pdf`,
-              mimeType: 'application/pdf'
-            };
-
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            form.append('file', pdfBlob);
-
-            const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`
-              },
-              body: form
-            });
-
-            if (uploadRes.status === 200 || uploadRes.status === 204) {
-              const resData = await uploadRes.json();
-              driveSuccess = `🎉 Saved to Google Drive! File ID: ${resData.id.substring(0, 10)}...`;
-            } else {
-              const errText = await uploadRes.text();
-              driveError = `Upload Error (${uploadRes.status}): ${errText}`;
-            }
-          } catch (uploadErr: any) {
-            driveError = 'Failed converting or uploading PDF: ' + uploadErr.message;
-          } finally {
-            isUploadingToDrive = false;
+          googleAccessToken = tokenResponse.access_token;
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('hfst_google_access_token', googleAccessToken);
           }
+
+          await uploadInvoiceToDrive(invoice, googleAccessToken, false);
         }
       };
 
@@ -913,6 +945,11 @@
     driveSuccess = '';
     driveError = '';
 
+    if (googleAccessToken) {
+      await uploadInvoiceToDrive(invoice, googleAccessToken, true);
+      return;
+    }
+
     if (typeof (window as any).google === 'undefined') {
       isUploadingToDrive = false;
       driveError = 'Google OAuth library is still loading. Please try again in a few seconds.';
@@ -925,9 +962,6 @@
       return;
     }
 
-    activeInvoiceForSilentExport = invoice;
-    await tick();
-
     try {
       const clientConfig: any = {
         client_id: googleClientId.trim(),
@@ -936,61 +970,15 @@
           if (tokenResponse.error) {
             isUploadingToDrive = false;
             driveError = 'Authentication failed: ' + tokenResponse.error;
-            activeInvoiceForSilentExport = null;
             return;
           }
 
-          const accessToken = tokenResponse.access_token;
-          
-          try {
-            const element = document.getElementById('silent-invoice-export-container');
-            if (!element) {
-              isUploadingToDrive = false;
-              driveError = 'Could not locate background invoice template.';
-              activeInvoiceForSilentExport = null;
-              return;
-            }
-
-            const opt = {
-              margin: 10,
-              filename: `Invoice_${invoice.id}.pdf`,
-              image: { type: 'jpeg', quality: 0.98 },
-              html2canvas: { scale: 2, useCORS: true },
-              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            const pdfBlob = await (window as any).html2pdf().set(opt).from(element).outputPdf('blob');
-
-            const metadata = {
-              name: `Invoice_${invoice.id}.pdf`,
-              mimeType: 'application/pdf'
-            };
-
-            const form = new FormData();
-            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-            form.append('file', pdfBlob);
-
-            const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${accessToken}`
-              },
-              body: form
-            });
-
-            if (uploadRes.status === 200 || uploadRes.status === 204) {
-              const resData = await uploadRes.json();
-              driveSuccess = `🎉 Invoice ${invoice.id} successfully saved directly to Google Drive! (ID: ${resData.id.substring(0, 10)}...)`;
-            } else {
-              const errText = await uploadRes.text();
-              driveError = `Upload Error (${uploadRes.status}): ${errText}`;
-            }
-          } catch (uploadErr: any) {
-            driveError = 'Direct Upload Error: ' + uploadErr.message;
-          } finally {
-            isUploadingToDrive = false;
-            activeInvoiceForSilentExport = null;
+          googleAccessToken = tokenResponse.access_token;
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('hfst_google_access_token', googleAccessToken);
           }
+
+          await uploadInvoiceToDrive(invoice, googleAccessToken, true);
         }
       };
 
@@ -1003,7 +991,6 @@
     } catch (err: any) {
       isUploadingToDrive = false;
       driveError = 'OAuth Direct Init Error: ' + err.message;
-      activeInvoiceForSilentExport = null;
     }
   }
 
@@ -1069,11 +1056,24 @@
           simpleBillingError = error.message;
           return;
         } else {
+          const createdInvoice = {
+            id: nextInvId,
+            project: 'Direct Sale: ' + inputSimpleBilling.customer_name.trim(),
+            customer_name: inputSimpleBilling.customer_name.trim(),
+            challan: 'Direct Billing',
+            qty: inputSimpleBilling.qty,
+            price: inputSimpleBilling.unit_price,
+            vat_challan: vatChallan,
+            status: 'Unpaid',
+            date: '2026-06-24',
+            due: '2026-07-24'
+          };
           simpleBillingSuccess = `✔ Invoice ${nextInvId} for ${inputSimpleBilling.customer_name} issued successfully! Total Billed: ${formatMoney(finalTotal)}`;
           await fetchInvoices();
           inputSimpleBilling.customer_name = '';
           inputSimpleBilling.qty = 1;
           inputSimpleBilling.is_vat_free = false;
+          handleDirectDriveUpload(createdInvoice);
           return;
         }
       } catch (err) {
@@ -1102,6 +1102,7 @@
     inputSimpleBilling.customer_name = '';
     inputSimpleBilling.qty = 1;
     inputSimpleBilling.is_vat_free = false;
+    handleDirectDriveUpload(newInvoice);
   }
 
   // -------------------------------------------------------------
@@ -1379,6 +1380,12 @@
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
       script.async = true;
       document.head.appendChild(script);
+    }
+    if (typeof sessionStorage !== 'undefined') {
+      const cachedToken = sessionStorage.getItem('hfst_google_access_token');
+      if (cachedToken) {
+        googleAccessToken = cachedToken;
+      }
     }
     initializeLocalStorage();
     try {
