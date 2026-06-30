@@ -3248,6 +3248,17 @@
       transform: translateX(-100%);
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      background: rgba(18, 22, 31, 0.75) !important;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+
+    :global(body.light-mode) .sidebar {
+      background: rgba(255, 255, 255, 0.75) !important;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(15, 23, 42, 0.08) !important;
     }
 
     .sidebar.open {
@@ -3275,17 +3286,32 @@
       justify-content: center;
       width: 44px;
       height: 44px;
-      background-color: #232a35;
-      border: 1px solid #334155;
+      background: rgba(30, 41, 59, 0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
       border-radius: 6px;
       color: #f8fafc;
       font-size: 22px;
       cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .btn-mobile-menu-toggle:hover {
+      background: rgba(30, 41, 59, 0.6);
+      border-color: rgba(255, 255, 255, 0.15);
     }
     :global(body.light-mode) .btn-mobile-menu-toggle {
-      background-color: #eff6ff;
-      border-color: #bfdbfe;
+      background: rgba(255, 255, 255, 0.6) !important;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(15, 23, 42, 0.08) !important;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
       color: #1e3a8a;
+    }
+    :global(body.light-mode) .btn-mobile-menu-toggle:hover {
+      background: rgba(255, 255, 255, 0.85) !important;
+      border-color: rgba(15, 23, 42, 0.15) !important;
     }
 
     .content-header h1 {
