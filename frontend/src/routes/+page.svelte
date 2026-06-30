@@ -188,7 +188,7 @@
   let productSuccess = $state('');
 
   // Project CRUD Form states
-  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items: '', supplied_items_qty: 1 });
+  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items_list: [{ sku: '', qty: 1 }] });
   let isEditingProject = $state(false);
   let projectError = $state('');
   let projectSuccess = $state('');
@@ -201,15 +201,11 @@
   let quickAddItemPrice = $state(0);
   let quickAddItemUnit = $state('Pcs');
   let quickAddItemType = $state('Standard');
+  let tempUnregisteredIndex = $state(0);
 
   // Watch Inventory stock quick modifier states
   let editingStockSku = $state('');
   let tempStockValue = $state(0);
-
-  // Derived unit of currently selected supply item
-  let selectedSupplyItemUnit = $derived(
-    items.find(i => i.sku.toLowerCase() === (inputProjectRecord.supplied_items || '').toLowerCase())?.unit || 'Pcs'
-  );
 
   // Interactive Form Inputs (Challan based)
   let inputLedger = $state({ sku: 'FM200-CYL-120L', from: 'Uttara Central Depot', to: 'High-Rise Tower Project', qty: 10, type: 'Stock Out', serial: '', batch: 'BAT-FM200-01' });
@@ -897,25 +893,26 @@
   // -------------------------------------------------------------
   let tempUnregisteredSku = $state('');
 
-  function handleCheckInventoryItem(e: Event) {
+  function handleCheckInventoryItem(index: number, e: Event) {
     const val = (e.target as HTMLInputElement).value.trim();
     if (!val) return;
 
     const exists = items.some(i => i.sku.toLowerCase() === val.toLowerCase() || i.name.toLowerCase() === val.toLowerCase());
     if (!exists) {
       tempUnregisteredSku = val;
+      tempUnregisteredIndex = index;
       showItemCheckPopup = true;
     } else {
       const match = items.find(i => i.sku.toLowerCase() === val.toLowerCase() || i.name.toLowerCase() === val.toLowerCase());
       if (match) {
-        inputProjectRecord.supplied_items = match.sku;
+        inputProjectRecord.supplied_items_list[index].sku = match.sku;
       }
     }
   }
 
   function handleCancelItemPopup() {
     showItemCheckPopup = false;
-    inputProjectRecord.supplied_items = '';
+    inputProjectRecord.supplied_items_list[tempUnregisteredIndex].sku = '';
     tempUnregisteredSku = '';
   }
 
@@ -957,7 +954,7 @@
       };
       items = [...items, sandboxItem];
       persistLocalData();
-      inputProjectRecord.supplied_items = newItemPayload.sku;
+      inputProjectRecord.supplied_items_list[tempUnregisteredIndex].sku = newItemPayload.sku;
       showQuickAddItemModal = false;
       alert(`Item ${newItemPayload.sku} added to catalog successfully (Sandbox).`);
     } else {
@@ -971,13 +968,28 @@
           alert('Error adding item: ' + error.message);
         } else {
           await loadAllData();
-          inputProjectRecord.supplied_items = newItemPayload.sku;
+          inputProjectRecord.supplied_items_list[tempUnregisteredIndex].sku = newItemPayload.sku;
           showQuickAddItemModal = false;
           alert(`Item ${newItemPayload.sku} added to catalog successfully in Supabase!`);
         }
       } catch (err: any) {
         alert('Network error adding item: ' + err.message);
       }
+    }
+  }
+
+  function addSupplyItemRow() {
+    inputProjectRecord.supplied_items_list = [
+      ...inputProjectRecord.supplied_items_list,
+      { sku: '', qty: 1 }
+    ];
+  }
+
+  function removeSupplyItemRow(index: number) {
+    if (inputProjectRecord.supplied_items_list.length === 1) {
+      inputProjectRecord.supplied_items_list = [{ sku: '', qty: 1 }];
+    } else {
+      inputProjectRecord.supplied_items_list = inputProjectRecord.supplied_items_list.filter((_, i) => i !== index);
     }
   }
 
@@ -1972,11 +1984,19 @@
                             <span class={refill.class}>{refill.text}</span>
                           </td>
                           <td>
-                            {#if proj.supplied_items}
-                              <code class="code-sku">{proj.supplied_items}</code>
-                              <span style="font-size: 11px; color: #94a3b8; margin-left: 6px; font-weight: 600;">
-                                ({formatQty(proj.supplied_items_qty)} {items.find(i => i.sku.toLowerCase() === proj.supplied_items.toLowerCase())?.unit || 'Pcs'})
-                              </span>
+                            {#if proj.supplied_items_list && proj.supplied_items_list.length > 0}
+                              <div style="display: flex; flex-direction: column; gap: 4px;">
+                                {#each proj.supplied_items_list as item}
+                                  {#if item.sku}
+                                    <div style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                                      <code class="code-sku" style="padding: 2px 6px;">{item.sku}</code>
+                                      <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">
+                                        ({formatQty(item.qty)} {items.find(i => i.sku.toLowerCase() === item.sku.toLowerCase())?.unit || 'Pcs'})
+                                      </span>
+                                    </div>
+                                  {/if}
+                                {/each}
+                              </div>
                             {:else}
                               <span class="text-muted">None</span>
                             {/if}
@@ -2049,44 +2069,62 @@
                 </div>
 
                 {#if inputProjectRecord.is_supply_items}
-                  <label>
-                    Select/Type Supply Item SKU *
-                    <input 
-                      type="text" 
-                      list="inventory-items-datalist" 
-                      bind:value={inputProjectRecord.supplied_items} 
-                      onchange={handleCheckInventoryItem}
-                      placeholder="e.g. FM200-CYL-120L" 
-                      required
-                    />
-                    <datalist id="inventory-items-datalist">
-                      {#each items as item}
-                        <option value={item.sku}>{item.name} ({item.unit})</option>
-                      {/each}
-                    </datalist>
-                  </label>
-                  <div class="form-row-2" style="margin-top: 10px;">
-                    <label>
-                      Supply Quantity *
-                      <input 
-                        type="number" 
-                        step="0.01" 
-                        bind:value={inputProjectRecord.supplied_items_qty} 
-                        min="0.01" 
-                        required 
-                      />
-                    </label>
-                    <label>
-                      Item Unit (Auto)
-                      <input 
-                        type="text" 
-                        value={selectedSupplyItemUnit} 
-                        readonly 
-                        disabled 
-                        style="background-color: #1e293b; color: #94a3b8; cursor: not-allowed;" 
-                      />
-                    </label>
+                  <div style="border: 1px dashed #232a35; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; background: rgba(18, 22, 31, 0.3);">
+                    {#each inputProjectRecord.supplied_items_list as row, idx}
+                      {@const rowUnit = items.find(i => i.sku.toLowerCase() === (row.sku || '').toLowerCase())?.unit || 'Pcs'}
+                      <div style="border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 4px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                          <span style="font-size: 11px; font-weight: 700; color: #f97316; text-transform: uppercase;">Item #{idx + 1}</span>
+                          {#if inputProjectRecord.supplied_items_list.length > 1}
+                            <button type="button" onclick={() => removeSupplyItemRow(idx)} class="btn-op delete" style="padding: 2px 8px; font-size: 11px;">Remove</button>
+                          {/if}
+                        </div>
+                        <label>
+                          Select/Type Supply Item SKU *
+                          <input 
+                            type="text" 
+                            list="inventory-items-datalist" 
+                            bind:value={row.sku} 
+                            onchange={(e) => handleCheckInventoryItem(idx, e)}
+                            placeholder="e.g. FM200-CYL-120L" 
+                            required
+                          />
+                        </label>
+                        <div class="form-row-2" style="margin-top: 10px;">
+                          <label>
+                            Supply Quantity *
+                            <input 
+                              type="number" 
+                              step="0.01" 
+                              bind:value={row.qty} 
+                              min="0.01" 
+                              required 
+                            />
+                          </label>
+                          <label>
+                            Item Unit (Auto)
+                            <input 
+                              type="text" 
+                              value={rowUnit} 
+                              readonly 
+                              disabled 
+                              style="background-color: #12161f; color: #94a3b8; cursor: not-allowed; font-size: 13px;" 
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    {/each}
+
+                    <button type="button" onclick={addSupplyItemRow} class="btn-op edit" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; font-size: 12px; font-weight: 700;">
+                      ➕ Add Another Item
+                    </button>
                   </div>
+                  
+                  <datalist id="inventory-items-datalist">
+                    {#each items as item}
+                      <option value={item.sku}>{item.name} ({item.unit})</option>
+                    {/each}
+                  </datalist>
                 {/if}
 
                 <div class="form-actions">
