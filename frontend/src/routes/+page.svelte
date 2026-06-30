@@ -21,6 +21,7 @@
   // -------------------------------------------------------------
   let token = $state('');
   let isAuthenticated = $state(false);
+  let isMenuOpen = $state(false);
 
   // Authentication Fields
   let authEmail = $state('');
@@ -107,6 +108,10 @@
   // Dynamic UI States
   // -------------------------------------------------------------
   let activeTab = $state('dashboard');
+  function switchTab(tab: string) {
+    activeTab = tab;
+    isMenuOpen = false;
+  }
   let ledgerError = $state('');
   let ledgerSuccess = $state('');
 
@@ -1042,9 +1047,14 @@
   </div>
 {:else}
   <main class="erp-container">
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    {#if isMenuOpen}
+      <div class="mobile-sidebar-backdrop" onclick={() => isMenuOpen = false}></div>
+    {/if}
+
     <!-- Side Navigation Bar -->
-    <aside class="sidebar">
-      <button onclick={() => activeTab = 'dashboard'} class="logo-btn" title="Go to Dashboard">
+    <aside class="sidebar" class:open={isMenuOpen}>
+      <button onclick={() => switchTab('dashboard')} class="logo-btn" title="Go to Dashboard">
         <div class="logo">
           <div class="flame-icon">
             <img src={logoSrc} alt="HFST Logo" class="sidebar-logo-img" />
@@ -1056,13 +1066,13 @@
         </div>
       </button>
       <nav class="nav-links">
-        <button class:active={activeTab === 'dashboard'} onclick={() => activeTab = 'dashboard'}>📊 Summary Dashboard</button>
-        <button class:active={activeTab === 'make-invoice'} onclick={() => activeTab = 'make-invoice'}>✍ Make Invoice</button>
-        <button class:active={activeTab === 'products'} onclick={() => activeTab = 'products'}>🛠 Add an Item</button>
-        <button class:active={activeTab === 'sales'} onclick={() => activeTab = 'sales'}>💼 Prices & Quotations</button>
-        <button class:active={activeTab === 'inventory'} onclick={() => activeTab = 'inventory'}>📦 Deliveries & Stock</button>
-        <button class:active={activeTab === 'billing'} onclick={() => activeTab = 'billing'}>🧾 Customer Invoices</button>
-        <button class:active={activeTab === 'watch-inventory'} onclick={() => activeTab = 'watch-inventory'}>👀 Watch Inventory</button>
+        <button class:active={activeTab === 'dashboard'} onclick={() => switchTab('dashboard')}>📊 Summary Dashboard</button>
+        <button class:active={activeTab === 'make-invoice'} onclick={() => switchTab('make-invoice')}>✍ Make Invoice</button>
+        <button class:active={activeTab === 'products'} onclick={() => switchTab('products')}>🛠 Add an Item</button>
+        <button class:active={activeTab === 'sales'} onclick={() => switchTab('sales')}>💼 Prices & Quotations</button>
+        <button class:active={activeTab === 'inventory'} onclick={() => switchTab('inventory')}>📦 Deliveries & Stock</button>
+        <button class:active={activeTab === 'billing'} onclick={() => switchTab('billing')}>🧾 Customer Invoices</button>
+        <button class:active={activeTab === 'watch-inventory'} onclick={() => switchTab('watch-inventory')}>👀 Watch Inventory</button>
       </nav>
 
       <div class="sidebar-footer">
@@ -1073,7 +1083,12 @@
     <!-- Main Display Screen -->
     <section class="main-content">
       <header class="content-header">
-        <h1>HFST Fire Security & Protection ERP</h1>
+        <div class="header-title-row">
+          <button type="button" class="btn-mobile-menu-toggle" onclick={() => isMenuOpen = !isMenuOpen} aria-label="Toggle Menu" title="Toggle Menu">
+            ☰
+          </button>
+          <h1>HFST Fire Security & Protection ERP</h1>
+        </div>
         <div class="header-status-area">
           <button type="button" onclick={() => showUserGuideModal = true} class="btn-theme-toggle-header btn-user-guide" aria-label="User Guide" title="Open User Guide">
             📖 User Guide
@@ -1123,36 +1138,38 @@
             <!-- Inventory Balance Check -->
             <div class="card card-wide">
               <h2>Current Warehouse Inventory (Stock levels)</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Item Code</th>
-                    <th>Product Name</th>
-                    <th>Tracking Method</th>
-                    <th>Stock Balance</th>
-                    <th>Alert Level</th>
-                    <th>Safety Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each currentStock as item}
+              <div class="responsive-table-container">
+                <table>
+                  <thead>
                     <tr>
-                      <td><code class="code-sku">{item.sku}</code></td>
-                      <td>{item.name}</td>
-                      <td><span class="badge category">{item.type}</span></td>
-                      <td class="text-bold">{formatQty(item.stock)} {item.unit || 'Pcs'}</td>
-                      <td>{formatQty(item.reorder_point || (item.average_consumption_rate * item.lead_time_days))} {item.unit || 'Pcs'}</td>
-                      <td>
-                        {#if item.stock <= (item.reorder_point || (item.average_consumption_rate * item.lead_time_days))}
-                          <span class="badge danger">Needs Restock</span>
-                        {:else}
-                          <span class="badge success">Stock Safe</span>
-                        {/if}
-                      </td>
+                      <th>Item Code</th>
+                      <th>Product Name</th>
+                      <th>Tracking Method</th>
+                      <th>Stock Balance</th>
+                      <th>Alert Level</th>
+                      <th>Safety Status</th>
                     </tr>
-                  {/each}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {#each currentStock as item}
+                      <tr>
+                        <td><code class="code-sku">{item.sku}</code></td>
+                        <td>{item.name}</td>
+                        <td><span class="badge category">{item.type}</span></td>
+                        <td class="text-bold">{formatQty(item.stock)} {item.unit || 'Pcs'}</td>
+                        <td>{formatQty(item.reorder_point || (item.average_consumption_rate * item.lead_time_days))} {item.unit || 'Pcs'}</td>
+                        <td>
+                          {#if item.stock <= (item.reorder_point || (item.average_consumption_rate * item.lead_time_days))}
+                            <span class="badge danger">Needs Restock</span>
+                          {:else}
+                            <span class="badge success">Stock Safe</span>
+                          {/if}
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <!-- Accounts Receivable Aging Chart -->
@@ -1310,35 +1327,37 @@
                 <div class="alert success">{productSuccess}</div>
               {/if}
 
-              <table>
-                <thead>
-                  <tr>
-                    <th>Item Code</th>
-                    <th>Product Name</th>
-                    <th>Tracking Method</th>
-                    <th>Daily Used Rate</th>
-                    <th>Supplier Days</th>
-                    <th>Restock Level</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each currentStock as item}
+              <div class="responsive-table-container">
+                <table>
+                  <thead>
                     <tr>
-                      <td><code class="code-sku">{item.sku}</code></td>
-                      <td class="text-bold">{item.name}</td>
-                      <td><span class="badge category">{item.type}</span></td>
-                      <td>{formatQty(item.average_consumption_rate)} {item.unit || 'Pcs'}/day</td>
-                      <td>{item.lead_time_days} Days</td>
-                      <td class="color-blue">{formatQty(item.average_consumption_rate * item.lead_time_days)} {item.unit || 'Pcs'}</td>
-                      <td class="operations-cell">
-                        <button onclick={() => editProduct(item)} class="btn-op edit">Modify</button>
-                        <button onclick={() => handleDeleteProduct(item.id)} class="btn-op delete">Remove</button>
-                      </td>
+                      <th>Item Code</th>
+                      <th>Product Name</th>
+                      <th>Tracking Method</th>
+                      <th>Daily Used Rate</th>
+                      <th>Supplier Days</th>
+                      <th>Restock Level</th>
+                      <th>Actions</th>
                     </tr>
-                  {/each}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {#each currentStock as item}
+                      <tr>
+                        <td><code class="code-sku">{item.sku}</code></td>
+                        <td>{item.name}</td>
+                        <td><span class="badge category">{item.type}</span></td>
+                        <td>{formatQty(item.average_consumption_rate)} {item.unit || 'Pcs'}/day</td>
+                        <td>{item.lead_time_days} Days</td>
+                        <td class="color-blue">{formatQty(item.average_consumption_rate * item.lead_time_days)} {item.unit || 'Pcs'}</td>
+                        <td class="operations-cell">
+                          <button onclick={() => editProduct(item)} class="btn-op edit">Modify</button>
+                          <button onclick={() => handleDeleteProduct(item.id)} class="btn-op delete">Remove</button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <!-- Form: Add/Edit Product -->
@@ -1473,38 +1492,40 @@
             <!-- Double-Entry Stock Ledger Log -->
             <div class="card card-wide">
               <h2>Stock Movement History Log (Audit Log)</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Log Code</th>
-                    <th>Item Code</th>
-                    <th>Direction</th>
-                    <th>Moved From</th>
-                    <th>Moved To</th>
-                    <th>Quantity</th>
-                    <th>Special Tracking</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each stockLedger as entry}
+              <div class="responsive-table-container">
+                <table>
+                  <thead>
                     <tr>
-                      <td><code>{entry.id}</code></td>
-                      <td><code class="code-sku">{entry.item_sku}</code></td>
-                      <td><span class="badge type-{entry.type.toLowerCase() === 'stock in' ? 'grn' : 'dispatch'}">{entry.type}</span></td>
-                      <td>{entry.from}</td>
-                      <td>{entry.to}</td>
-                      <td class="text-bold">{formatQty(entry.qty)} Units</td>
-                      <td>
-                        {#if entry.serial}
-                          <span class="pill-id">Serial: {entry.serial}</span>
-                        {:else}
-                          <span class="pill-id">Batch Lock</span>
-                        {/if}
-                      </td>
+                      <th>Log Code</th>
+                      <th>Item Code</th>
+                      <th>Direction</th>
+                      <th>Moved From</th>
+                      <th>Moved To</th>
+                      <th>Quantity</th>
+                      <th>Special Tracking</th>
                     </tr>
-                  {/each}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {#each stockLedger as entry}
+                      <tr>
+                        <td><code>{entry.id}</code></td>
+                        <td><code class="code-sku">{entry.item_sku}</code></td>
+                        <td><span class="badge type-{entry.type.toLowerCase() === 'stock in' ? 'grn' : 'dispatch'}">{entry.type}</span></td>
+                        <td>{entry.from}</td>
+                        <td>{entry.to}</td>
+                        <td class="text-bold">{formatQty(entry.qty)} Units</td>
+                        <td>
+                          {#if entry.serial}
+                            <span class="pill-id">Serial: {entry.serial}</span>
+                          {:else}
+                            <span class="pill-id">Batch Lock</span>
+                          {/if}
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <!-- Post Stock Transaction -->
@@ -1580,36 +1601,38 @@
             <!-- Invoices List -->
             <div class="card card-wide">
               <h2>Issued Client Invoices</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Invoice Number</th>
-                    <th>Customer / Client Name</th>
-                    <th>Billing Reference</th>
-                    <th>Quantity Billed</th>
-                    <th>Unit Price</th>
-                    <th>NBR VAT Mushak-6.3</th>
-                    <th>Total Billed (Inc. VAT)</th>
-                    <th>Status</th>
-                    <th>Payment Due</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each invoices as inv}
+              <div class="responsive-table-container">
+                <table>
+                  <thead>
                     <tr>
-                      <td><code>{inv.id}</code></td>
-                      <td class="text-bold">{inv.customer_name || (inv.project.startsWith('Direct Sale: ') ? inv.project.substring(13) : inv.project)}</td>
-                      <td><code>{inv.challan}</code></td>
-                      <td>{formatQty(inv.qty)} Units</td>
-                      <td>{formatMoney(inv.price)}</td>
-                      <td><span class="pill-vat">{inv.vat_challan}</span></td>
-                      <td class="text-bold">{formatMoney(inv.qty * inv.price * (inv.vat_challan === 'VAT Free (Exempt)' ? 1.0 : 1.15))}</td>
-                      <td><span class="badge status-{inv.status.toLowerCase()}">{inv.status}</span></td>
-                      <td>{inv.due}</td>
+                      <th>Invoice Number</th>
+                      <th>Customer / Client Name</th>
+                      <th>Billing Reference</th>
+                      <th>Quantity Billed</th>
+                      <th>Unit Price</th>
+                      <th>NBR VAT Mushak-6.3</th>
+                      <th>Total Billed (Inc. VAT)</th>
+                      <th>Status</th>
+                      <th>Payment Due</th>
                     </tr>
-                  {/each}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {#each invoices as inv}
+                      <tr>
+                        <td><code>{inv.id}</code></td>
+                        <td class="text-bold">{inv.customer_name || (inv.project.startsWith('Direct Sale: ') ? inv.project.substring(13) : inv.project)}</td>
+                        <td><code>{inv.challan}</code></td>
+                        <td>{formatQty(inv.qty)} Units</td>
+                        <td>{formatMoney(inv.price)}</td>
+                        <td><span class="pill-vat">{inv.vat_challan}</span></td>
+                        <td class="text-bold">{formatMoney(inv.qty * inv.price * (inv.vat_challan === 'VAT Free (Exempt)' ? 1.0 : 1.15))}</td>
+                        <td><span class="badge status-{inv.status.toLowerCase()}">{inv.status}</span></td>
+                        <td>{inv.due}</td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <!-- Total A/R summary card on side -->
@@ -1641,52 +1664,54 @@
             <!-- Watch Inventory Custom Table -->
             <div class="card card-wide">
               <h2>Watch Inventory Catalog</h2>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Item Code</th>
-                    <th>Equipment Name</th>
-                    <th>Unit</th>
-                    <th>Stock Level</th>
-                    <th>Purchase Price</th>
-                    <th>Selling Price</th>
-                    <th style="text-align: center;">Reorder Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each currentStock as item}
+              <div class="responsive-table-container">
+                <table>
+                  <thead>
                     <tr>
-                      <td><code>{item.sku}</code></td>
-                      <td class="text-bold">{item.name}</td>
-                      <td><span class="pill-id">{item.unit || 'Pcs'}</span></td>
-                      <td>
-                        <span class="text-bold">{formatQty(item.stock)}</span>
-                        {#if item.stock <= (item.reorder_point || (item.average_consumption_rate * item.lead_time_days))}
-                          <span class="badge danger" style="margin-left: 8px;">Low Stock</span>
-                        {:else}
-                          <span class="badge success" style="margin-left: 8px;">Safe</span>
-                        {/if}
-                      </td>
-                      <td>{formatMoney(item.purchase_price || 0)}</td>
-                      <td>{formatMoney(item.selling_price || 0)}</td>
-                      <td style="text-align: center;">
-                        <button 
-                          type="button" 
-                          onclick={() => sendRestockReminder(item.sku, item.name)} 
-                          class="btn-op {restockReminders[item.sku] ? 'btn-remind-sent' : 'edit'}"
-                          style="min-width: 140px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;"
-                        >
-                          {#if restockReminders[item.sku]}
-                            ✔ Reminder Sent
-                          {:else}
-                            🔔 Restock Reminder
-                          {/if}
-                        </button>
-                      </td>
+                      <th>Item Code</th>
+                      <th>Equipment Name</th>
+                      <th>Unit</th>
+                      <th>Stock Level</th>
+                      <th>Purchase Price</th>
+                      <th>Selling Price</th>
+                      <th style="text-align: center;">Reorder Action</th>
                     </tr>
-                  {/each}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {#each currentStock as item}
+                      <tr>
+                        <td><code>{item.sku}</code></td>
+                        <td class="text-bold">{item.name}</td>
+                        <td><span class="pill-id">{item.unit || 'Pcs'}</span></td>
+                        <td>
+                          <span class="text-bold">{formatQty(item.stock)}</span>
+                          {#if item.stock <= (item.reorder_point || (item.average_consumption_rate * item.lead_time_days))}
+                            <span class="badge danger" style="margin-left: 8px;">Low Stock</span>
+                          {:else}
+                            <span class="badge success" style="margin-left: 8px;">Safe</span>
+                          {/if}
+                        </td>
+                        <td>{formatMoney(item.purchase_price || 0)}</td>
+                        <td>{formatMoney(item.selling_price || 0)}</td>
+                        <td style="text-align: center;">
+                          <button 
+                            type="button" 
+                            onclick={() => sendRestockReminder(item.sku, item.name)} 
+                            class="btn-op {restockReminders[item.sku] ? 'btn-remind-sent' : 'edit'}"
+                            style="min-width: 140px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;"
+                          >
+                            {#if restockReminders[item.sku]}
+                              ✔ Reminder Sent
+                            {:else}
+                              🔔 Restock Reminder
+                            {/if}
+                          </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -3162,5 +3187,184 @@
 
   :global(body.light-mode) .modal-alert-box strong {
     color: #b45309;
+  }
+
+  /* -------------------------------------------------------------
+   * Mobile-First ERP Responsive Stylesheet
+   * ------------------------------------------------------------- */
+  .responsive-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #232a35;
+    border-radius: 6px;
+    margin-bottom: 15px;
+  }
+  :global(body.light-mode) .responsive-table-container {
+    border-color: #cbd5e1;
+  }
+
+  .btn-mobile-menu-toggle {
+    display: none;
+  }
+
+  .header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  @media (max-width: 768px) {
+    .erp-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .mobile-sidebar-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 280px;
+      z-index: 1000;
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar.open {
+      transform: translateX(0);
+    }
+
+    .main-content {
+      padding: 20px 16px;
+      width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+
+    .content-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+    }
+
+    .btn-mobile-menu-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      background-color: #232a35;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #f8fafc;
+      font-size: 22px;
+      cursor: pointer;
+    }
+    :global(body.light-mode) .btn-mobile-menu-toggle {
+      background-color: #eff6ff;
+      border-color: #bfdbfe;
+      color: #1e3a8a;
+    }
+
+    .content-header h1 {
+      font-size: 20px;
+      line-height: 1.3;
+    }
+
+    .header-status-area {
+      width: 100%;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .metrics-grid {
+      grid-template-columns: 1fr !important;
+      gap: 16px;
+    }
+
+    .dashboard-body {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card-wide, .card-narrow {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin-bottom: 0 !important;
+    }
+
+    /* Form and touch target scaling */
+    .standard-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .standard-form label {
+      font-size: 14px;
+    }
+
+    .standard-form input,
+    .standard-form select,
+    .standard-form textarea,
+    .standard-form button,
+    .btn-op {
+      min-height: 44px !important;
+      font-size: 16px !important; /* Prevents viewport scaling/zooming on mobile focus */
+      padding: 10px 14px !important;
+      box-sizing: border-box;
+    }
+
+    .form-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .form-actions button {
+      width: 100% !important;
+    }
+
+    .tree-node {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .node-meta {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .modal-card {
+      width: 95% !important;
+      max-height: 90vh !important;
+      margin: 10px auto;
+      padding: 16px !important;
+    }
   }
 </style>
