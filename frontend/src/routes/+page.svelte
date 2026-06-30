@@ -3311,10 +3311,14 @@
       gap: 20px;
     }
 
-    .card-wide, .card-narrow {
+    .card, .card-wide, .card-narrow {
       width: 100% !important;
       max-width: 100% !important;
-      margin-bottom: 0 !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+      padding: 16px !important;
+      border-radius: 8px !important;
+      margin-bottom: 16px !important;
     }
 
     /* Form and touch target scaling */
@@ -3326,12 +3330,6 @@
 
     .standard-form label {
       font-size: 14px;
-    }
-
-    .card {
-      padding: 16px !important;
-      border-radius: 8px !important;
-      margin-bottom: 16px !important;
     }
 
     .guide-box {
