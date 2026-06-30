@@ -41,6 +41,28 @@
     return Math.round(num).toLocaleString('en-US') + ' BDT';
   }
 
+  function formatBDPhoneNumber(value: string): string {
+    let digits = value.replace(/\D/g, '');
+    
+    if (digits.startsWith('880')) {
+      digits = digits.substring(3);
+    } else if (digits.startsWith('0')) {
+      digits = digits.substring(1);
+    }
+
+    if (digits.length > 10) {
+      digits = digits.substring(0, 10);
+    }
+
+    if (digits.length === 0) {
+      return '';
+    }
+    if (digits.length <= 4) {
+      return `+880 ${digits}`;
+    }
+    return `+880 ${digits.substring(0, 4)}-${digits.substring(4)}`;
+  }
+
   function getRefillStatus(project: any) {
     if (!project.is_refilling_project || !project.starting_date) {
       return { status: 'n/a', text: 'No reminders', class: 'color-disabled' };
@@ -1767,7 +1789,14 @@
 
                 <label>
                   Contact Number
-                  <input type="text" bind:value={inputProjectRecord.contact_number} placeholder="e.g. +8801712345678" />
+                  <input 
+                    type="text" 
+                    value={inputProjectRecord.contact_number} 
+                    oninput={(e) => {
+                      inputProjectRecord.contact_number = formatBDPhoneNumber(e.currentTarget.value);
+                    }} 
+                    placeholder="e.g. 01712-345678" 
+                  />
                 </label>
 
                 <div class="form-actions">

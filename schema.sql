@@ -18,6 +18,10 @@ CREATE TABLE projects (
     name VARCHAR(255) NOT NULL,
     client_name VARCHAR(255) NOT NULL,
     location TEXT NOT NULL,
+    starting_date DATE,
+    is_refilling_project BOOLEAN DEFAULT FALSE,
+    contact_person VARCHAR(255),
+    contact_number VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
