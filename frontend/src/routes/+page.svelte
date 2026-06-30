@@ -4012,7 +4012,7 @@
     gap: 12px;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1100px) {
     .erp-container {
       display: flex;
       flex-direction: column;
