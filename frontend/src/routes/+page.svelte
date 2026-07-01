@@ -2109,9 +2109,9 @@
                             Supply Quantity *
                             <input 
                               type="number" 
-                              step="0.01" 
+                              step="1" 
                               bind:value={inputProjectRecord.supplied_items_list[idx].qty} 
-                              min="0.01" 
+                              min="1" 
                               required 
                             />
                           </label>
