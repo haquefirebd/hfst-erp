@@ -185,6 +185,7 @@
 
   let googleClientId = $state('');
   let googleLoginHint = $state('redshieldsafety@gmail.com');
+  let googleDriveFolderId = $state('');
   let googleAccessToken = $state('');
   let isUploadingToDrive = $state(false);
   let driveSuccess = $state('');
@@ -1101,10 +1102,13 @@
 
       const pdfBlob = await (window as any).html2pdf().set(opt).from(element).outputPdf('blob');
 
-      const metadata = {
+      const metadata: any = {
         name: `Invoice_${invoice.id}.pdf`,
         mimeType: 'application/pdf'
       };
+      if (googleDriveFolderId && googleDriveFolderId.trim() !== '') {
+        metadata.parents = [googleDriveFolderId.trim()];
+      }
 
       const form = new FormData();
       form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -1202,6 +1206,7 @@
     if (typeof window !== 'undefined') {
       localStorage.setItem('hfst_google_client_id', googleClientId.trim());
       localStorage.setItem('hfst_google_login_hint', googleLoginHint.trim());
+      localStorage.setItem('hfst_google_folder_id', googleDriveFolderId.trim());
       alert('Google API Settings saved locally successfully!');
     }
   }
@@ -1585,6 +1590,11 @@
     const localGoogleLoginHint = localStorage.getItem('hfst_google_login_hint');
     if (localGoogleLoginHint) {
       googleLoginHint = localGoogleLoginHint;
+    }
+
+    const localGoogleFolderId = localStorage.getItem('hfst_google_folder_id');
+    if (localGoogleFolderId) {
+      googleDriveFolderId = localGoogleFolderId;
     }
     
     // Items
@@ -2851,6 +2861,10 @@
                 <label style="font-size: 12px; margin-top: 6px;">
                   Target Gmail Account (Auto-fill)
                   <input type="email" bind:value={googleLoginHint} placeholder="e.g. redshieldsafety@gmail.com" style="font-size: 13px !important; padding: 8px !important;" />
+                </label>
+                <label style="font-size: 12px; margin-top: 6px;">
+                  Google Drive Folder ID (Optional)
+                  <input type="text" bind:value={googleDriveFolderId} placeholder="e.g. 1A2B3C4D5e6F7g8H" style="font-size: 13px !important; padding: 8px !important;" />
                 </label>
                 <button type="button" onclick={saveGoogleClientId} class="btn btn-primary" style="width: 100%; min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">
                   Save Credentials
