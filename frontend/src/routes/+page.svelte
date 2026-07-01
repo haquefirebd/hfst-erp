@@ -230,6 +230,21 @@
     return diffDays <= 30;
   }));
 
+  let clientSearchQuery = $state('');
+  let filteredClients = $derived(
+    projects.filter(p => {
+      const q = clientSearchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.client || '').toLowerCase().includes(q) ||
+        (p.contact_person || '').toLowerCase().includes(q) ||
+        (p.contact_number || '').toLowerCase().includes(q) ||
+        (p.location || '').toLowerCase().includes(q)
+      );
+    })
+  );
+
   // Calculate accounts receivable aging
   let arAging = $state({ current: 431250, days30: 0, days60: 0, days90: 0, days120: 0, total: 431250 });
 
@@ -1790,6 +1805,7 @@
       <nav class="nav-links">
         <button class:active={activeTab === 'dashboard'} onclick={() => switchTab('dashboard')}>📊 Summary Dashboard</button>
         <button class:active={activeTab === 'manage-projects'} onclick={() => switchTab('manage-projects')}>🏢 Manage Projects</button>
+        <button class:active={activeTab === 'client-contacts'} onclick={() => switchTab('client-contacts')}>👥 Client Directory</button>
         <button class:active={activeTab === 'make-invoice'} onclick={() => switchTab('make-invoice')}>✍ Make Invoice</button>
         <button class:active={activeTab === 'products'} onclick={() => switchTab('products')}>🛠 Add an Item</button>
         <button class:active={activeTab === 'sales'} onclick={() => switchTab('sales')}>💼 Prices & Quotations</button>
@@ -2798,6 +2814,92 @@
                               🔔 Restock Reminder
                             {/if}
                           </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Tab 8: Client Directory -->
+      {#if activeTab === 'client-contacts'}
+        <div class="tab-pane">
+          <div class="guide-box">
+            <h4>👥 Client Directory</h4>
+            <p>Unified directory of all registered clients, contact persons, contact numbers, project locations, and service contract types synced from the live database.</p>
+          </div>
+
+          <div class="dashboard-body">
+            <div class="card card-wide">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+                <h2 style="margin: 0;">Client Directory</h2>
+                <div style="display: flex; gap: 8px; width: 100%; max-width: 400px;">
+                  <input 
+                    type="text" 
+                    placeholder="Search by Company, Customer Name, Phone, Location..." 
+                    bind:value={clientSearchQuery} 
+                    style="margin: 0; padding: 10px 14px; border-radius: 4px; border: 1px solid #232a35; background: #12161f; color: #fff; width: 100%; font-size: 13px;"
+                  />
+                </div>
+              </div>
+
+              <div class="responsive-table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Company Name</th>
+                      <th>Customer Name</th>
+                      <th>Phone Number</th>
+                      <th>Location / Address</th>
+                      <th>Project Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each filteredClients as proj}
+                      <tr>
+                        <td class="text-bold" style="color: #f97316;">{proj.client}</td>
+                        <td style="font-weight: 600;">
+                          {#if proj.contact_person}
+                            👤 {proj.contact_person}
+                          {:else}
+                            <span class="text-muted">—</span>
+                          {/if}
+                        </td>
+                        <td>
+                          {#if proj.contact_number}
+                            <a href="tel:{proj.contact_number}" style="color: #3b82f6; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                              📞 {proj.contact_number}
+                            </a>
+                          {:else}
+                            <span class="text-muted">—</span>
+                          {/if}
+                        </td>
+                        <td>
+                          <span style="font-size: 12px; color: #f8fafc; display: inline-flex; align-items: center; gap: 4px;">
+                            📍 {proj.location}
+                          </span>
+                        </td>
+                        <td>
+                          <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                            {#if proj.is_refilling_project}
+                              <span class="badge" style="background-color: rgba(249, 115, 22, 0.15); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.3); font-size: 10px; padding: 2px 6px; font-weight: 600;">Refilling Project</span>
+                            {/if}
+                            {#if proj.is_refilling_reminders}
+                              <span class="badge" style="background-color: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 10px; padding: 2px 6px; font-weight: 600;">Reminders Active</span>
+                            {:else}
+                              <span style="font-size: 11px; color: #64748b; font-weight: 600; padding-left: 2px;">Reminders Off</span>
+                            {/if}
+                          </div>
+                        </td>
+                      </tr>
+                    {:else}
+                      <tr>
+                        <td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">
+                          No matching clients found.
                         </td>
                       </tr>
                     {/each}
