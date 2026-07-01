@@ -161,10 +161,26 @@
   let showUserGuideModal = $state(false);
   let showInvoicePrintModal = $state(false);
   let selectedInvoiceForPrint = $state<any>(null);
+  let showQuotePrintModal = $state(false);
+  let selectedQuoteForPrint = $state<any>(null);
 
   function openInvoicePrint(inv: any) {
     selectedInvoiceForPrint = inv;
     showInvoicePrintModal = true;
+  }
+
+  function openQuotePrint(quote: any, ver: any) {
+    selectedQuoteForPrint = {
+      id: quote.id,
+      project: quote.project,
+      version: ver.version,
+      total: ver.total,
+      vat: ver.vat,
+      status: ver.status,
+      notes: ver.notes || 'No description provided.',
+      date: ver.date
+    };
+    showQuotePrintModal = true;
   }
 
   let googleClientId = $state('');
@@ -2572,10 +2588,18 @@
                     <div class="tree-node" class:approved={ver.status === 'Approved'} class:rejected={ver.status === 'Rejected'}>
                       <div class="node-ver">v{ver.version}</div>
                       <div class="node-details">
-                        <div class="node-meta">
+                        <div class="node-meta" style="display: flex; align-items: center; gap: 12px; width: 100%;">
                           <span>Total Proposed: <strong>{formatMoney(ver.total)}</strong></span>
                           <span>NBR VAT Tax (15%): <strong>{formatMoney(ver.vat)}</strong></span>
                           <span class="badge status-{ver.status.toLowerCase()}">{ver.status}</span>
+                          <button 
+                            type="button" 
+                            onclick={() => openQuotePrint(quote, ver)} 
+                            class="btn-op edit" 
+                            style="margin-left: auto; padding: 4px 8px !important; font-size: 11px !important; min-width: auto !important; height: auto !important; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;"
+                          >
+                            🖨 Print
+                          </button>
                         </div>
                         <p class="notes">✍ Client Negotiation Log: {ver.notes} ({ver.date})</p>
                       </div>
@@ -3223,6 +3247,120 @@
               <button onclick={() => window.print()} class="btn btn-primary" style="min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">🖨 Print / PDF</button>
               <button onclick={() => showInvoicePrintModal = false} class="btn btn-cancel" style="min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">Close</button>
             </div>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    {#if showQuotePrintModal && selectedQuoteForPrint}
+      <div class="modal-backdrop" onclick={() => showQuotePrintModal = false}>
+        <div class="modal-card user-guide-modal" onclick={(e) => e.stopPropagation()} style="max-width: 800px !important;">
+          <div class="modal-header no-print">
+            <h2>📄 Quotation Pad Preview</h2>
+            <button type="button" onclick={() => showQuotePrintModal = false} class="btn-close-modal" aria-label="Close Preview">✕</button>
+          </div>
+
+          <div class="modal-body invoice-printable-area" style="background-color: #ffffff; color: #0f172a; padding: 40px; border-radius: 6px; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; flex-direction: column; justify-content: space-between; min-height: 275mm; box-sizing: border-box;">
+            <div>
+              <!-- Official Letterhead Header -->
+              <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
+                <div style="background-color: #ffffff; border: 1px solid rgba(27, 42, 74, 0.08); border-radius: 8px; padding: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(27, 42, 74, 0.02);">
+                  <img src="/logo.png" alt="HFST Logo" style="height: 70px; width: auto; display: block;" />
+                </div>
+                <div style="text-align: left; display: flex; flex-direction: column; justify-content: center;">
+                  <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #1B2A4A; line-height: 1.15; letter-spacing: 0.4px;">
+                    HAQUE <span style="color: #E31E24;">FIRE</span> SAFETY & TECHNOLOGY
+                  </h1>
+                  <p style="margin: 4px 0 0 0; font-size: 9.5px; font-weight: 600; color: #1B2A4A; letter-spacing: 1.8px; text-transform: uppercase; opacity: 0.9;">
+                    Engineering a Safer Bangladesh
+                  </p>
+                </div>
+              </div>
+
+              <!-- Double Accent Line -->
+              <div style="height: 5px; position: relative; width: 100%; margin-bottom: 20px;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: #1B2A4A;"></div>
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background-color: #E31E24;"></div>
+              </div>
+
+              <!-- Quotation Metadata Block -->
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 12px;">
+                <div>
+                  <h2 style="margin: 0; font-size: 18px; color: #1B2A4A; font-weight: 700; letter-spacing: 0.5px;">PRICE QUOTATION</h2>
+                  <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569;"><strong>Quotation Ref:</strong> {selectedQuoteForPrint.id} (v{selectedQuoteForPrint.version})</p>
+                </div>
+                <div style="text-align: right; font-size: 12px; color: #475569; line-height: 1.4;">
+                  <p style="margin: 0;"><strong>Date:</strong> {selectedQuoteForPrint.date}</p>
+                  <p style="margin: 2px 0 0 0;"><strong>Status:</strong> {selectedQuoteForPrint.status}</p>
+                </div>
+              </div>
+
+              <!-- Client Info -->
+              <div style="margin-bottom: 25px;">
+                <h3 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; font-weight: 700;">Proposed To:</h3>
+                <p style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">{selectedQuoteForPrint.project}</p>
+              </div>
+
+              <!-- Quote Body / Description of Services -->
+              <div style="margin-bottom: 25px; font-size: 13px; color: #334155; line-height: 1.6; background-color: #f8fafc; padding: 15px; border-radius: 4px; border: 1px solid #e2e8f0; box-sizing: border-box;">
+                <h4 style="margin: 0 0 8px 0; color: #1B2A4A; font-size: 13px; font-weight: 700;">Proposed Scope of Work & Pricing Notes:</h4>
+                <p style="margin: 0; white-space: pre-wrap;">{selectedQuoteForPrint.notes}</p>
+              </div>
+
+              <!-- Totals -->
+              <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+                <div style="width: 320px; font-size: 12px;">
+                  <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
+                    <span>Proposed Subtotal:</span>
+                    <span style="font-weight: 700; color: #0f172a;">{formatMoney(selectedQuoteForPrint.total)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
+                    <span>Estimated NBR VAT (15%):</span>
+                    <span style="font-weight: 700; color: #0f172a;">{formatMoney(selectedQuoteForPrint.vat)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; font-weight: 800; color: #1B2A4A; border-top: 2px double #cbd5e1; margin-top: 4px;">
+                    <span>Grand Total (Inc. VAT):</span>
+                    <span>{formatMoney(selectedQuoteForPrint.total + selectedQuoteForPrint.vat)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Signature & Authorized Seals -->
+            <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 20px;">
+              <div style="font-size: 11px; color: #64748b;">
+                <p style="margin: 0;">Subject to standard terms & engineering approval.</p>
+                <p style="margin: 2px 0 0 0;">Valid for 30 days from the date of issue.</p>
+              </div>
+              <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                <div style="position: relative; height: 75px; width: 150px; margin-bottom: 4px;">
+                  <img src="/authorized-seals.png" alt="Authorized Seals" style="height: 100%; width: auto; object-fit: contain; display: block;" />
+                </div>
+                <div style="border-top: 1px solid #cbd5e1; width: 160px; padding-top: 4px; font-size: 11px; font-weight: 700; color: #1B2A4A; text-align: center; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Authorized Seal
+                </div>
+              </div>
+            </div>
+
+            <!-- Official Letterhead Footer -->
+            <div style="border-top: 1px solid #CCCCCC; padding-top: 10px; margin-top: 10px;">
+              <div style="font-size: 7.8px; color: #333333; line-height: 1.5; text-align: center; width: 100%; font-family: 'Plus Jakarta Sans', sans-serif;">
+                <div style="margin-bottom: 3px;">
+                  <span style="font-weight: 700; color: #1B2A4A;">Corporate office:</span> A K Peace Tower (1st Floor), 1/3, Rajdhani Housing, 40 Feet Main Road, Mohammadpur, Dhaka-1207, Bangladesh.
+                </div>
+                <div style="margin-bottom: 3px;">
+                  <span style="font-weight: 700; color: #1B2A4A;">Phone:</span> +8801320580631 | +8801320580632, <span style="font-weight: 700; color: #1B2A4A;">E-mail:</span> haquefirebd@gmail.com, <span style="font-weight: 700; color: #1B2A4A;">Website:</span> www.hfstbd.com.
+                </div>
+                <div style="font-size: 7.2px; white-space: nowrap;">
+                  <span style="font-weight: 700; color: #1B2A4A;">Factory 01:</span> House # Ga- 85 (Gr Fl.), Middle Badda, Gulshan, Dhaka-1212, Bangladesh. <span style="font-weight: 700; color: #1B2A4A;">Factory 02:</span> A G S Sazidul Market, Gazipura Bus Stand, Gazipur, Bangladesh
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer no-print" style="display: flex; justify-content: flex-end; gap: 10px; width: 100%;">
+            <button onclick={() => window.print()} class="btn btn-primary" style="min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">🖨 Print / PDF</button>
+            <button onclick={() => showQuotePrintModal = false} class="btn btn-cancel" style="min-height: 38px !important; padding: 6px 12px !important; font-size: 13px !important;">Close</button>
           </div>
         </div>
       </div>
