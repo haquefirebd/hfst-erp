@@ -151,7 +151,8 @@
     bank_name: '',
     credit_due_date: '2026-07-24',
     other_details: '',
-    set_refilling_reminder: false
+    is_refilling_project: false,
+    is_refilling_reminders: false
   });
   let simpleBillingError = $state('');
   let simpleBillingSuccess = $state('');
@@ -1356,8 +1357,8 @@
         contact_number: cleanPhone,
         location: cleanLocation,
         starting_date: '2026-06-24',
-        is_refilling_project: inputSimpleBilling.set_refilling_reminder,
-        is_refilling_reminders: inputSimpleBilling.set_refilling_reminder,
+        is_refilling_project: inputSimpleBilling.is_refilling_project,
+        is_refilling_reminders: inputSimpleBilling.is_refilling_reminders,
         supplied_items: `${inputSimpleBilling.sku}:${inputSimpleBilling.qty}`
       };
 
@@ -1381,8 +1382,8 @@
         client: cleanCustomer,
         location: cleanLocation,
         starting_date: '2026-06-24',
-        is_refilling_project: inputSimpleBilling.set_refilling_reminder,
-        is_refilling_reminders: inputSimpleBilling.set_refilling_reminder,
+        is_refilling_project: inputSimpleBilling.is_refilling_project,
+        is_refilling_reminders: inputSimpleBilling.is_refilling_reminders,
         contact_number: cleanPhone,
         contact_person: cleanCustomer,
         supplied_items_list: [{ sku: inputSimpleBilling.sku, qty: inputSimpleBilling.qty }]
@@ -1461,7 +1462,8 @@
           inputSimpleBilling.cheque_number = '';
           inputSimpleBilling.bank_name = '';
           inputSimpleBilling.other_details = '';
-          inputSimpleBilling.set_refilling_reminder = false;
+          inputSimpleBilling.is_refilling_project = false;
+          inputSimpleBilling.is_refilling_reminders = false;
           handleDirectDriveUpload(createdInvoice);
           return;
         }
@@ -1505,7 +1507,8 @@
     inputSimpleBilling.cheque_number = '';
     inputSimpleBilling.bank_name = '';
     inputSimpleBilling.other_details = '';
-    inputSimpleBilling.set_refilling_reminder = false;
+    inputSimpleBilling.is_refilling_project = false;
+    inputSimpleBilling.is_refilling_reminders = false;
     handleDirectDriveUpload(newInvoice);
   }
 
@@ -2463,16 +2466,22 @@
                 </div>
 
                 {#if isFireExtinguisher}
-                  <div style="background: rgba(227, 30, 36, 0.05); padding: 16px; border-radius: 4px; border: 1px dashed rgba(227, 30, 36, 0.4); margin-top: 15px; box-sizing: border-box; display: flex; align-items: center; gap: 10px;">
-                    <input 
-                      type="checkbox" 
-                      bind:checked={inputSimpleBilling.set_refilling_reminder} 
-                      id="chk-refill-reminder" 
-                      style="width: auto; cursor: pointer; margin: 0;" 
-                    />
-                    <label for="chk-refill-reminder" style="margin: 0; cursor: pointer; color: #f87171; font-weight: 700; font-size: 13px;">
-                      🔥 Set Refilling Reminder for this Fire Extinguisher?
-                    </label>
+                  <div style="background: rgba(227, 30, 36, 0.03); padding: 16px; border-radius: 4px; border: 1px dashed rgba(227, 30, 36, 0.25); margin-top: 15px; box-sizing: border-box; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                    <span style="color: #f87171; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;">🔥 Fire Extinguisher detected:</span>
+                    <div class="switch-container" style="margin: 0; padding: 0;">
+                      <label class="switch">
+                        <input type="checkbox" bind:checked={inputSimpleBilling.is_refilling_project} />
+                        <span class="slider"></span>
+                      </label>
+                      <span class="switch-label-text" style="color: #f87171; font-weight: 700;">Refilling Project</span>
+                    </div>
+                    <div class="switch-container" style="margin: 0; padding: 0;">
+                      <label class="switch">
+                        <input type="checkbox" bind:checked={inputSimpleBilling.is_refilling_reminders} />
+                        <span class="slider"></span>
+                      </label>
+                      <span class="switch-label-text" style="color: #f87171; font-weight: 700;">Refilling Reminders</span>
+                    </div>
                   </div>
                 {/if}
 
