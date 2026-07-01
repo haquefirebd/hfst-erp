@@ -2888,10 +2888,11 @@
                             {#if proj.is_refilling_project}
                               <span class="badge" style="background-color: rgba(249, 115, 22, 0.15); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.3); font-size: 10px; padding: 2px 6px; font-weight: 600;">Refilling Project</span>
                             {/if}
-                            {#if proj.is_refilling_reminders}
-                              <span class="badge" style="background-color: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 10px; padding: 2px 6px; font-weight: 600;">Reminders Active</span>
-                            {:else}
-                              <span style="font-size: 11px; color: #64748b; font-weight: 600; padding-left: 2px;">Reminders Off</span>
+                            {#if proj.supplied_items_list && proj.supplied_items_list.some(item => item.sku && item.sku.trim() !== '')}
+                              <span class="badge" style="background-color: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 10px; padding: 2px 6px; font-weight: 600;">Supply Items</span>
+                            {/if}
+                            {#if !proj.is_refilling_project && (!proj.supplied_items_list || !proj.supplied_items_list.some(item => item.sku && item.sku.trim() !== ''))}
+                              <span class="text-muted" style="font-size: 11px; font-weight: 600; padding-left: 2px;">Standard Project</span>
                             {/if}
                           </div>
                         </td>
