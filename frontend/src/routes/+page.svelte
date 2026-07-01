@@ -3342,9 +3342,6 @@
                   <tr style="border-bottom: 1px solid #e2e8f0;">
                     <td style="padding: 12px 10px; color: #0f172a;">
                       <strong>{selectedInvoiceForPrint.item_name || 'Fire Safety Equipment supply & services'}</strong>
-                      {#if selectedInvoiceForPrint.item_sku}
-                        <span style="font-size: 11px; color: #475569; margin-left: 4px;">({selectedInvoiceForPrint.item_sku})</span>
-                      {/if}
                       <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Quantity Billed: {formatQty(selectedInvoiceForPrint.qty)} Units | Compliance: {selectedInvoiceForPrint.vat_challan}</div>
                     </td>
                     <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatQty(selectedInvoiceForPrint.qty)}</td>
@@ -3661,9 +3658,6 @@
               <tr style="border-bottom: 1px solid #e2e8f0;">
                 <td style="padding: 12px 10px; color: #0f172a;">
                   <strong>{activeInvoiceForSilentExport.item_name || 'Fire Safety Equipment supply & services'}</strong>
-                  {#if activeInvoiceForSilentExport.item_sku}
-                    <span style="font-size: 11px; color: #475569; margin-left: 4px;">({activeInvoiceForSilentExport.item_sku})</span>
-                  {/if}
                   <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Quantity Billed: {formatQty(activeInvoiceForSilentExport.qty)} Units | Compliance: {activeInvoiceForSilentExport.vat_challan}</div>
                 </td>
                 <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatQty(activeInvoiceForSilentExport.qty)}</td>
