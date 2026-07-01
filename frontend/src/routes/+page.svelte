@@ -1230,23 +1230,36 @@
   }
 
   function authorizeGoogleDrive() {
-    if (!googleClientId.trim()) {
-      alert('Please enter and save your Google Client ID first in the settings panel.');
-      return;
-    }
-    
-    if (typeof (window as any).google === 'undefined' || typeof (window as any).google.accounts === 'undefined' || typeof (window as any).google.accounts.oauth2 === 'undefined') {
-      alert('Google OAuth library is still loading. Please try again in a few seconds.');
-      return;
-    }
-
     try {
+      let clientId = googleClientId.trim();
+      if (!clientId || clientId.length < 20 || !clientId.endsWith('.apps.googleusercontent.com')) {
+        clientId = '448722868485-u4n7m32e08h6rku34nngqjkqc5nlneqa.apps.googleusercontent.com';
+        googleClientId = clientId;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('hfst_google_client_id', clientId);
+        }
+      }
+
+      let loginHint = googleLoginHint.trim();
+      if (!loginHint || !loginHint.includes('@')) {
+        loginHint = 'redshieldsafety@gmail.com';
+        googleLoginHint = loginHint;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('hfst_google_login_hint', loginHint);
+        }
+      }
+      
+      if (typeof (window as any).google === 'undefined' || typeof (window as any).google.accounts === 'undefined' || typeof (window as any).google.accounts.oauth2 === 'undefined') {
+        alert('Google OAuth library is still loading. Please try again in a few seconds.\n(Details: window.google is ' + (typeof (window as any).google) + ')');
+        return;
+      }
+
       const clientConfig: any = {
-        client_id: googleClientId.trim(),
+        client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive.file',
         callback: (tokenResponse: any) => {
           if (tokenResponse.error) {
-            alert('Authentication failed: ' + tokenResponse.error);
+            alert('Authentication failed from Google: ' + tokenResponse.error + '\nDetails: ' + JSON.stringify(tokenResponse));
             return;
           }
           googleAccessToken = tokenResponse.access_token;
@@ -1257,14 +1270,14 @@
         }
       };
 
-      if (googleLoginHint.trim()) {
-        clientConfig.hint = googleLoginHint.trim();
+      if (loginHint) {
+        clientConfig.hint = loginHint;
       }
 
       const client = (window as any).google.accounts.oauth2.initTokenClient(clientConfig);
       client.requestAccessToken();
     } catch (err: any) {
-      alert('OAuth Connect Error: ' + err.message);
+      alert('OAuth Connect Error:\nMessage: ' + err.message + '\nStack: ' + err.stack);
     }
   }
 
