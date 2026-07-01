@@ -1096,6 +1096,8 @@
     if (isSilent) {
       activeInvoiceForSilentExport = invoice;
       await tick();
+      // Give browser layout engine time to paint the offscreen container
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
 
     try {
@@ -3665,7 +3667,7 @@
 
     <!-- Invisible container for silent PDF export -->
     {#if activeInvoiceForSilentExport}
-      <div style="position: absolute; left: -9999px; top: -9999px; width: 800px; background-color: #ffffff; color: #0f172a; padding: 40px; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; flex-direction: column; justify-content: space-between; min-height: 275mm; box-sizing: border-box;" id="silent-invoice-export-container">
+      <div style="position: fixed; left: 0; top: 0; z-index: -9999; opacity: 0; pointer-events: none; width: 800px; background-color: #ffffff; color: #0f172a; padding: 40px; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; flex-direction: column; justify-content: space-between; min-height: 275mm; box-sizing: border-box;" id="silent-invoice-export-container">
         <div>
           <!-- Official Letterhead Header -->
           <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
