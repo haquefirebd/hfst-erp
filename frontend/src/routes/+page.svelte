@@ -2944,7 +2944,7 @@
 
           <div class="dashboard-body">
             <!-- Invoices List -->
-            <div class="card card-wide">
+            <div class="card card-wide" style="width: 100%; flex: 1 1 100%;">
               <h2>Issued Client Invoices</h2>
               <div class="responsive-table-container">
                 <table>
