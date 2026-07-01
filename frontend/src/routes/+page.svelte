@@ -185,7 +185,7 @@
 
   let googleClientId = $state('');
   let googleLoginHint = $state('redshieldsafety@gmail.com');
-  let googleDriveFolderId = $state('');
+  let googleDriveFolderId = $state('12W4P3O-TRr3t5MFRcse9qDOzPtwWhFi_');
   let googleAccessToken = $state('');
   let isUploadingToDrive = $state(false);
   let driveSuccess = $state('');
@@ -1595,6 +1595,8 @@
     const localGoogleFolderId = localStorage.getItem('hfst_google_folder_id');
     if (localGoogleFolderId) {
       googleDriveFolderId = localGoogleFolderId;
+    } else {
+      googleDriveFolderId = '12W4P3O-TRr3t5MFRcse9qDOzPtwWhFi_';
     }
     
     // Items
