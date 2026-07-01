@@ -1230,6 +1230,7 @@
   }
 
   function authorizeGoogleDrive() {
+    alert("🔍 Connect Drive clicked! Client ID: " + googleClientId + "\nGoogle Library: " + (typeof (window as any).google));
     try {
       let clientId = googleClientId.trim();
       if (!clientId || clientId.length < 20 || !clientId.endsWith('.apps.googleusercontent.com')) {
