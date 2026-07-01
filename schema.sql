@@ -135,6 +135,8 @@ CREATE TABLE invoices (
     price DECIMAL(15, 4) NOT NULL,
     vat_challan VARCHAR(100),
     status VARCHAR(50) NOT NULL,
+    payment_method VARCHAR(100) DEFAULT 'Cash',
+    payment_details TEXT,
     date DATE NOT NULL,
     due DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

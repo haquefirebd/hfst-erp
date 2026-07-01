@@ -141,7 +141,12 @@
     sku: 'FM200-CYL-120L',
     qty: 1,
     unit_price: 125000,
-    is_vat_free: false
+    is_vat_free: false,
+    payment_method: 'Cash',
+    mobile_ref_id: '',
+    cheque_number: '',
+    bank_name: '',
+    credit_due_date: '2026-07-24'
   });
   let simpleBillingError = $state('');
   let simpleBillingSuccess = $state('');
@@ -482,7 +487,7 @@
       const { data } = await supabase
         .from('invoices')
         .select(`
-          id, qty, price, vat_challan, status, date, due,
+          id, qty, price, vat_challan, status, date, due, payment_method, payment_details,
           projects (name),
           challan_id
         `);
@@ -496,7 +501,9 @@
           vat_challan: inv.vat_challan,
           status: inv.status,
           date: inv.date,
-          due: inv.due
+          due: inv.due,
+          payment_method: inv.payment_method,
+          payment_details: inv.payment_details
         }));
       }
       // Calculate outstanding aging
@@ -1283,6 +1290,14 @@
     const finalTotal = subtotal + vat;
     const vatChallan = inputSimpleBilling.is_vat_free ? 'VAT Free (Exempt)' : 'NBR Mushak-6.3 #' + (9110 + invoices.length);
 
+    const status = inputSimpleBilling.payment_method === 'On Credit' ? 'Unpaid' : 'Paid';
+    const due = inputSimpleBilling.payment_method === 'On Credit' ? inputSimpleBilling.credit_due_date : '2026-06-24';
+    const details = inputSimpleBilling.payment_method === 'Mobile Banking' 
+      ? `Ref ID: ${inputSimpleBilling.mobile_ref_id}` 
+      : inputSimpleBilling.payment_method === 'Cheque/Bank'
+      ? `CHQ: ${inputSimpleBilling.cheque_number} (${inputSimpleBilling.bank_name})`
+      : null;
+
     const isSandbox = (token === 'hfst_erp_admin_sandbox_token' || !token);
     if (!isSandbox) {
       try {
@@ -1293,9 +1308,11 @@
             qty: inputSimpleBilling.qty,
             price: inputSimpleBilling.unit_price,
             vat_challan: vatChallan,
-            status: 'Unpaid',
+            status: status,
             date: '2026-06-24',
-            due: '2026-07-24'
+            due: due,
+            payment_method: inputSimpleBilling.payment_method,
+            payment_details: details
           });
         if (error) {
           if (isNetworkError(error)) {
@@ -1312,15 +1329,20 @@
             qty: inputSimpleBilling.qty,
             price: inputSimpleBilling.unit_price,
             vat_challan: vatChallan,
-            status: 'Unpaid',
+            status: status,
             date: '2026-06-24',
-            due: '2026-07-24'
+            due: due,
+            payment_method: inputSimpleBilling.payment_method,
+            payment_details: details
           };
           simpleBillingSuccess = `✔ Invoice ${nextInvId} for ${inputSimpleBilling.customer_name} issued successfully! Total Billed: ${formatMoney(finalTotal)}`;
           await fetchInvoices();
           inputSimpleBilling.customer_name = '';
           inputSimpleBilling.qty = 1;
           inputSimpleBilling.is_vat_free = false;
+          inputSimpleBilling.mobile_ref_id = '';
+          inputSimpleBilling.cheque_number = '';
+          inputSimpleBilling.bank_name = '';
           handleDirectDriveUpload(createdInvoice);
           return;
         }
@@ -1338,18 +1360,25 @@
       qty: inputSimpleBilling.qty,
       price: inputSimpleBilling.unit_price,
       vat_challan: vatChallan,
-      status: 'Unpaid',
+      status: status,
       date: '2026-06-24',
-      due: '2026-07-24'
+      due: due,
+      payment_method: inputSimpleBilling.payment_method,
+      payment_details: details
     };
     invoices = [...invoices, newInvoice];
     persistLocalData();
-    arAging.current += finalTotal;
-    arAging.total += finalTotal;
+    if (status !== 'Paid') {
+      arAging.current += finalTotal;
+      arAging.total += finalTotal;
+    }
     simpleBillingSuccess = `✔ Invoice ${nextInvId} for ${inputSimpleBilling.customer_name} issued successfully! Total Billed: ${formatMoney(finalTotal)} (Sandbox)`;
     inputSimpleBilling.customer_name = '';
     inputSimpleBilling.qty = 1;
     inputSimpleBilling.is_vat_free = false;
+    inputSimpleBilling.mobile_ref_id = '';
+    inputSimpleBilling.cheque_number = '';
+    inputSimpleBilling.bank_name = '';
     handleDirectDriveUpload(newInvoice);
   }
 
@@ -2284,6 +2313,106 @@
                   </label>
                 </div>
 
+                <div class="payment-method-section" style="margin-top: 24px; margin-bottom: 24px;">
+                  <label style="font-weight: 700; font-size: 11px; color: #f97316; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em;">Payment Method *</label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                    <button 
+                      type="button" 
+                      class="btn-payment-method"
+                      onclick={() => {
+                        inputSimpleBilling.payment_method = 'Cash';
+                      }}
+                      style="padding: 12px; font-weight: 700; text-align: center; border-radius: 4px; cursor: pointer; border: 1px solid {inputSimpleBilling.payment_method === 'Cash' ? '#f97316' : '#232a35'}; background: {inputSimpleBilling.payment_method === 'Cash' ? '#f97316' : '#12161f'}; color: {inputSimpleBilling.payment_method === 'Cash' ? '#0b0d11' : '#94a3b8'}; font-size: 13px; transition: all 0.2s;"
+                    >
+                      💵 Cash Received
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn-payment-method"
+                      onclick={() => {
+                        inputSimpleBilling.payment_method = 'Mobile Banking';
+                      }}
+                      style="padding: 12px; font-weight: 700; text-align: center; border-radius: 4px; cursor: pointer; border: 1px solid {inputSimpleBilling.payment_method === 'Mobile Banking' ? '#f97316' : '#232a35'}; background: {inputSimpleBilling.payment_method === 'Mobile Banking' ? '#f97316' : '#12161f'}; color: {inputSimpleBilling.payment_method === 'Mobile Banking' ? '#0b0d11' : '#94a3b8'}; font-size: 13px; transition: all 0.2s;"
+                    >
+                      📱 Mobile Banking
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn-payment-method"
+                      onclick={() => {
+                        inputSimpleBilling.payment_method = 'Cheque/Bank';
+                      }}
+                      style="padding: 12px; font-weight: 700; text-align: center; border-radius: 4px; cursor: pointer; border: 1px solid {inputSimpleBilling.payment_method === 'Cheque/Bank' ? '#f97316' : '#232a35'}; background: {inputSimpleBilling.payment_method === 'Cheque/Bank' ? '#f97316' : '#12161f'}; color: {inputSimpleBilling.payment_method === 'Cheque/Bank' ? '#0b0d11' : '#94a3b8'}; font-size: 13px; transition: all 0.2s;"
+                    >
+                      🏦 Cheque / Bank
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn-payment-method"
+                      onclick={() => {
+                        inputSimpleBilling.payment_method = 'On Credit';
+                      }}
+                      style="padding: 12px; font-weight: 700; text-align: center; border-radius: 4px; cursor: pointer; border: 1px solid {inputSimpleBilling.payment_method === 'On Credit' ? '#f97316' : '#232a35'}; background: {inputSimpleBilling.payment_method === 'On Credit' ? '#f97316' : '#12161f'}; color: {inputSimpleBilling.payment_method === 'On Credit' ? '#0b0d11' : '#94a3b8'}; font-size: 13px; transition: all 0.2s;"
+                    >
+                      💳 On Credit
+                    </button>
+                  </div>
+
+                  {#if inputSimpleBilling.payment_method === 'Mobile Banking'}
+                    <div style="background: #12161f; padding: 16px; border-radius: 4px; border: 1px dashed #232a35; margin-top: 12px; box-sizing: border-box;">
+                      <label style="margin: 0; display: block; font-weight: 600; font-size: 12px; color: #94a3b8; margin-bottom: 6px;">
+                        Mobile Banking Reference ID *
+                        <input 
+                          type="text" 
+                          bind:value={inputSimpleBilling.mobile_ref_id} 
+                          placeholder="e.g. Bkash / Rocket TxnID" 
+                          style="width: 100%; box-sizing: border-box; background-color: #171d28; border: 1px solid #232a35; border-radius: 4px; padding: 10px; color: #fff; margin-top: 4px;"
+                          required 
+                        />
+                      </label>
+                    </div>
+                  {/if}
+
+                  {#if inputSimpleBilling.payment_method === 'Cheque/Bank'}
+                    <div style="background: #12161f; padding: 16px; border-radius: 4px; border: 1px dashed #232a35; margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; box-sizing: border-box;">
+                      <label style="margin: 0; display: block; font-weight: 600; font-size: 12px; color: #94a3b8;">
+                        Cheque Number *
+                        <input 
+                          type="text" 
+                          bind:value={inputSimpleBilling.cheque_number} 
+                          placeholder="e.g. CHQ-88992" 
+                          style="width: 100%; box-sizing: border-box; background-color: #171d28; border: 1px solid #232a35; border-radius: 4px; padding: 10px; color: #fff; margin-top: 4px;"
+                          required 
+                        />
+                      </label>
+                      <label style="margin: 0; display: block; font-weight: 600; font-size: 12px; color: #94a3b8;">
+                        Bank Name *
+                        <input 
+                          type="text" 
+                          bind:value={inputSimpleBilling.bank_name} 
+                          placeholder="e.g. Dutch Bangla Bank" 
+                          style="width: 100%; box-sizing: border-box; background-color: #171d28; border: 1px solid #232a35; border-radius: 4px; padding: 10px; color: #fff; margin-top: 4px;"
+                          required 
+                        />
+                      </label>
+                    </div>
+                  {/if}
+
+                  {#if inputSimpleBilling.payment_method === 'On Credit'}
+                    <div style="background: #12161f; padding: 16px; border-radius: 4px; border: 1px dashed #232a35; margin-top: 12px; box-sizing: border-box;">
+                      <label style="margin: 0; display: block; font-weight: 600; font-size: 12px; color: #94a3b8; margin-bottom: 6px;">
+                        Payment Due Date *
+                        <input 
+                          type="date" 
+                          bind:value={inputSimpleBilling.credit_due_date} 
+                          style="width: 100%; box-sizing: border-box; background-color: #171d28; border: 1px solid #232a35; border-radius: 4px; padding: 10px; color: #fff; margin-top: 4px;"
+                          required 
+                        />
+                      </label>
+                    </div>
+                  {/if}
+                </div>
+
                 <div class="calculation-summary-box">
                   <h3>Price Calculation Summary</h3>
                   <div class="calc-row">
@@ -2637,7 +2766,21 @@
                         <td>{formatMoney(inv.price)}</td>
                         <td><span class="pill-vat">{inv.vat_challan}</span></td>
                         <td class="text-bold">{formatMoney(inv.qty * inv.price * (inv.vat_challan === 'VAT Free (Exempt)' ? 1.0 : 1.15))}</td>
-                        <td><span class="badge status-{inv.status.toLowerCase()}">{inv.status}</span></td>
+                        <td>
+                          <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                            <span class="badge status-{inv.status.toLowerCase()}">{inv.status}</span>
+                            {#if inv.payment_method}
+                              <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">
+                                {inv.payment_method === 'Cash' ? '💵 Cash' : inv.payment_method === 'Mobile Banking' ? '📱 Mobile' : inv.payment_method === 'Cheque/Bank' ? '🏦 Cheque' : '💳 Credit'}
+                              </span>
+                            {/if}
+                            {#if inv.payment_details}
+                              <span style="font-size: 10px; color: #64748b;" title={inv.payment_details}>
+                                {inv.payment_details}
+                              </span>
+                            {/if}
+                          </div>
+                        </td>
                         <td>{inv.due}</td>
                         <td style="text-align: center;">
                           <div style="display: inline-flex; gap: 8px; justify-content: center; width: 100%;">
