@@ -1235,7 +1235,7 @@
       return;
     }
     
-    if (typeof (window as any).google === 'undefined') {
+    if (typeof (window as any).google === 'undefined' || typeof (window as any).google.accounts === 'undefined' || typeof (window as any).google.accounts.oauth2 === 'undefined') {
       alert('Google OAuth library is still loading. Please try again in a few seconds.');
       return;
     }
@@ -1304,7 +1304,7 @@
       return;
     }
 
-    if (typeof (window as any).google === 'undefined') {
+    if (typeof (window as any).google === 'undefined' || typeof (window as any).google.accounts === 'undefined' || typeof (window as any).google.accounts.oauth2 === 'undefined') {
       isUploadingToDrive = false;
       driveError = 'Google OAuth library is still loading. Please try again in a few seconds.';
       return;
@@ -1860,21 +1860,6 @@
   }
 
   onMount(async () => {
-    if (typeof document !== 'undefined' && !document.getElementById('google-gsi-client')) {
-      const script = document.createElement('script');
-      script.id = 'google-gsi-client';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-    if (typeof document !== 'undefined' && !document.getElementById('html2pdf-cdn')) {
-      const script = document.createElement('script');
-      script.id = 'html2pdf-cdn';
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-      script.async = true;
-      document.head.appendChild(script);
-    }
     if (typeof sessionStorage !== 'undefined') {
       const cachedToken = sessionStorage.getItem('hfst_google_access_token');
       if (cachedToken) {
