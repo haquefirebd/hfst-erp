@@ -64,7 +64,7 @@
   }
 
   function getRefillStatus(project: any) {
-    if (!project.is_refilling_project || !project.starting_date) {
+    if (!project.is_refilling_reminders || !project.starting_date) {
       return { status: 'n/a', text: 'No reminders', class: 'color-disabled' };
     }
     
@@ -188,7 +188,7 @@
   let productSuccess = $state('');
 
   // Project CRUD Form states
-  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items_list: [{ sku: '', qty: 1 }] });
+  let inputProjectRecord = $state({ id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, is_refilling_reminders: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items_list: [{ sku: '', qty: 1 }] });
   let isEditingProject = $state(false);
   let projectError = $state('');
   let projectSuccess = $state('');
@@ -320,6 +320,7 @@
             location: p.location,
             starting_date: p.starting_date || '',
             is_refilling_project: !!p.is_refilling_project,
+            is_refilling_reminders: !!p.is_refilling_reminders,
             contact_number: p.contact_number || '',
             contact_person: p.contact_person || '',
             supplied_items_list: list
@@ -759,6 +760,7 @@
       location: inputProjectRecord.location.trim(),
       starting_date: inputProjectRecord.starting_date || null,
       is_refilling_project: !!inputProjectRecord.is_refilling_project,
+      is_refilling_reminders: !!inputProjectRecord.is_refilling_reminders,
       contact_number: inputProjectRecord.contact_number.trim() || null,
       contact_person: inputProjectRecord.contact_person.trim() || null,
       supplied_items: serializedItems
@@ -793,6 +795,7 @@
             location: payload.location,
             starting_date: payload.starting_date || '',
             is_refilling_project: payload.is_refilling_project,
+            is_refilling_reminders: payload.is_refilling_reminders,
             contact_number: payload.contact_number || '',
             contact_person: payload.contact_person || '',
             supplied_items_list: list
@@ -837,6 +840,7 @@
           location: payload.location,
           starting_date: payload.starting_date || '',
           is_refilling_project: payload.is_refilling_project,
+          is_refilling_reminders: payload.is_refilling_reminders,
           contact_number: payload.contact_number || '',
           contact_person: payload.contact_person || '',
           supplied_items_list: list
@@ -905,6 +909,7 @@
       client_name: proj.client,
       starting_date: proj.starting_date || '',
       is_refilling_project: !!proj.is_refilling_project,
+      is_refilling_reminders: !!proj.is_refilling_reminders,
       contact_number: proj.contact_number || '',
       contact_person: proj.contact_person || '',
       is_supply_items: hasItems,
@@ -916,7 +921,7 @@
 
   function resetProjectForm() {
     isEditingProject = false;
-    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items_list: [{ sku: '', qty: 1 }] };
+    inputProjectRecord = { id: '', name: '', location: '', client_name: '', starting_date: '', is_refilling_project: false, is_refilling_reminders: false, contact_number: '', contact_person: '', is_supply_items: false, supplied_items_list: [{ sku: '', qty: 1 }] };
   }
 
   // -------------------------------------------------------------
@@ -2021,7 +2026,16 @@
                             {/if}
                           </td>
                           <td>
-                            <span class={refill.class}>{refill.text}</span>
+                            <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;">
+                              {#if proj.is_refilling_project}
+                                <span class="badge type-grn" style="background-color: rgba(249, 115, 22, 0.15); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.3); font-size: 10px; padding: 2px 6px;">Refilling Project</span>
+                              {/if}
+                              {#if proj.is_refilling_reminders}
+                                <span class={refill.class} style="font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px;">{refill.text}</span>
+                              {:else}
+                                <span style="font-size: 11px; color: #64748b; font-weight: 600; padding-left: 2px;">Reminders Off</span>
+                              {/if}
+                            </div>
                           </td>
                           <td>
                             {#if proj.supplied_items_list && proj.supplied_items_list.length > 0}
@@ -2073,14 +2087,21 @@
                   <input type="text" bind:value={inputProjectRecord.location} placeholder="e.g. Gulshan-2, Dhaka" required />
                 </label>
 
-                <div class="form-row-2">
-                  <label>
+                <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px;">
+                  <label style="flex: 1; min-width: 140px; margin-bottom: 0;">
                     Starting Date
-                    <input type="date" bind:value={inputProjectRecord.starting_date} />
+                    <input type="date" bind:value={inputProjectRecord.starting_date} style="margin: 0;" />
                   </label>
-                  <div class="switch-container" style="margin-top: 24px;">
+                  <div class="switch-container" style="margin: 0; padding: 10px 0;">
                     <label class="switch">
                       <input type="checkbox" bind:checked={inputProjectRecord.is_refilling_project} />
+                      <span class="slider"></span>
+                    </label>
+                    <span class="switch-label-text">Refilling Project</span>
+                  </div>
+                  <div class="switch-container" style="margin: 0; padding: 10px 0;">
+                    <label class="switch">
+                      <input type="checkbox" bind:checked={inputProjectRecord.is_refilling_reminders} />
                       <span class="slider"></span>
                     </label>
                     <span class="switch-label-text">Refilling Reminders</span>

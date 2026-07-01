@@ -20,6 +20,7 @@ CREATE TABLE projects (
     location TEXT NOT NULL,
     starting_date DATE,
     is_refilling_project BOOLEAN DEFAULT FALSE,
+    is_refilling_reminders BOOLEAN DEFAULT FALSE,
     contact_person VARCHAR(255),
     contact_number VARCHAR(100),
     supplied_items TEXT,
