@@ -517,6 +517,8 @@
           id, qty, price, vat_challan, status, date, due, payment_method, payment_details,
           project_id,
           projects (name, client_name),
+          item_sku,
+          items (name),
           challan_id
         `);
       if (data) {
@@ -533,7 +535,9 @@
           date: inv.date,
           due: inv.due,
           payment_method: inv.payment_method,
-          payment_details: inv.payment_details
+          payment_details: inv.payment_details,
+          item_sku: inv.item_sku,
+          item_name: inv.items?.name || ''
         }));
       }
       // Calculate outstanding aging
@@ -1418,7 +1422,8 @@
             date: '2026-06-24',
             due: due,
             payment_method: inputSimpleBilling.payment_method,
-            payment_details: details
+            payment_details: details,
+            item_sku: inputSimpleBilling.sku
           });
         if (error) {
           if (isNetworkError(error)) {
@@ -1440,7 +1445,9 @@
             date: '2026-06-24',
             due: due,
             payment_method: inputSimpleBilling.payment_method,
-            payment_details: details
+            payment_details: details,
+            item_sku: inputSimpleBilling.sku,
+            item_name: selectedItem.name
           };
           simpleBillingSuccess = `✔ Invoice ${nextInvId} for ${cleanCompany} issued successfully! Total Billed: ${formatMoney(finalTotal)}`;
           await fetchInvoices();
@@ -1477,7 +1484,9 @@
       date: '2026-06-24',
       due: due,
       payment_method: inputSimpleBilling.payment_method,
-      payment_details: details
+      payment_details: details,
+      item_sku: inputSimpleBilling.sku,
+      item_name: selectedItem.name
     };
     invoices = [...invoices, newInvoice];
     persistLocalData();
@@ -3288,7 +3297,7 @@
               <!-- Invoice Metadata Block -->
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 12px;">
                 <div>
-                  <h2 style="margin: 0; font-size: 18px; color: #1B2A4A; font-weight: 700; letter-spacing: 0.5px;">BILLING RECEIPT</h2>
+                  <h2 style="margin: 0; font-size: 18px; color: #1B2A4A; font-weight: 700; letter-spacing: 0.5px;">TAX INVOICE</h2>
                   <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569;"><strong>Billing Reference:</strong> {selectedInvoiceForPrint.challan}</p>
                 </div>
                 <div style="text-align: right; font-size: 12px; color: #475569; line-height: 1.4;">
@@ -3332,8 +3341,11 @@
                 <tbody>
                   <tr style="border-bottom: 1px solid #e2e8f0;">
                     <td style="padding: 12px 10px; color: #0f172a;">
-                      Fire Safety Equipment supply & services (Reference: {selectedInvoiceForPrint.challan})
-                      <div style="font-size: 10px; color: #64748b; margin-top: 4px;">Compliance: {selectedInvoiceForPrint.vat_challan}</div>
+                      <strong>{selectedInvoiceForPrint.item_name || 'Fire Safety Equipment supply & services'}</strong>
+                      {#if selectedInvoiceForPrint.item_sku}
+                        <span style="font-size: 11px; color: #475569; margin-left: 4px;">({selectedInvoiceForPrint.item_sku})</span>
+                      {/if}
+                      <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Quantity Billed: {formatQty(selectedInvoiceForPrint.qty)} Units | Compliance: {selectedInvoiceForPrint.vat_challan}</div>
                     </td>
                     <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatQty(selectedInvoiceForPrint.qty)}</td>
                     <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatMoney(selectedInvoiceForPrint.price)}</td>
@@ -3578,80 +3590,137 @@
 
     <!-- Invisible container for silent PDF export -->
     {#if activeInvoiceForSilentExport}
-      <div style="position: absolute; left: -9999px; top: -9999px; width: 800px; background-color: #ffffff; color: #0f172a; padding: 30px;" id="silent-invoice-export-container">
-        <!-- Invoice Header -->
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #cbd5e1; padding-bottom: 15px;">
-          <div>
-            <h1 style="margin: 0; font-size: 24px; color: #1e3a8a; display: flex; align-items: center; gap: 8px;">🔥 HFST Fire Safety</h1>
-            <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;">House-44, Road-12, Sector-3, Uttara, Dhaka</p>
-            <p style="margin: 2px 0 0 0; font-size: 13px; color: #475569;">Ph: +8801712345678 | Email: billing@hfsterp.com</p>
+      <div style="position: absolute; left: -9999px; top: -9999px; width: 800px; background-color: #ffffff; color: #0f172a; padding: 40px; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; flex-direction: column; justify-content: space-between; min-height: 275mm; box-sizing: border-box;" id="silent-invoice-export-container">
+        <div>
+          <!-- Official Letterhead Header -->
+          <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 12px; border-bottom: none; padding-bottom: 0;">
+            <div style="background-color: #ffffff; border: 1px solid rgba(27, 42, 74, 0.08); border-radius: 8px; padding: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(27, 42, 74, 0.02);">
+              <img src="/logo.png" alt="HFST Logo" style="height: 70px; width: auto; display: block;" />
+            </div>
+            <div style="text-align: left; display: flex; flex-direction: column; justify-content: center;">
+              <h1 style="margin: 0; font-size: 18px; font-weight: 800; color: #1B2A4A; line-height: 1.15; letter-spacing: 0.4px;">
+                HAQUE <span style="color: #E31E24;">FIRE</span> SAFETY & TECHNOLOGY
+              </h1>
+              <p style="margin: 4px 0 0 0; font-size: 9.5px; font-weight: 600; color: #1B2A4A; letter-spacing: 1.8px; text-transform: uppercase; opacity: 0.9;">
+                Engineering a Safer Bangladesh
+              </p>
+            </div>
           </div>
-          <div style="text-align: right;">
-            <h2 style="margin: 0; font-size: 20px; color: #c2410c; letter-spacing: 1px;">BILLING RECEIPT</h2>
-            <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569;"><strong>Invoice No:</strong> {activeInvoiceForSilentExport.id}</p>
-            <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569;"><strong>Date:</strong> {activeInvoiceForSilentExport.date}</p>
-            <p style="margin: 2px 0 0 0; font-size: 12px; color: #475569;"><strong>Due Date:</strong> {activeInvoiceForSilentExport.due}</p>
+
+          <!-- Double Accent Line -->
+          <div style="height: 5px; position: relative; width: 100%; margin-bottom: 20px;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 2px; background-color: #1B2A4A;"></div>
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background-color: #E31E24;"></div>
+          </div>
+
+          <!-- Invoice Metadata Block -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 12px;">
+            <div>
+              <h2 style="margin: 0; font-size: 18px; color: #1B2A4A; font-weight: 700; letter-spacing: 0.5px;">TAX INVOICE</h2>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569;"><strong>Billing Reference:</strong> {activeInvoiceForSilentExport.challan}</p>
+            </div>
+            <div style="text-align: right; font-size: 12px; color: #475569; line-height: 1.4;">
+              <p style="margin: 0;"><strong>Invoice No:</strong> {activeInvoiceForSilentExport.id}</p>
+              <p style="margin: 2px 0 0 0;"><strong>Date:</strong> {activeInvoiceForSilentExport.date}</p>
+              <p style="margin: 2px 0 0 0;"><strong>Due Date:</strong> {activeInvoiceForSilentExport.due}</p>
+            </div>
+          </div>
+
+          <!-- Bill To & Payment Status -->
+          <div style="margin-bottom: 25px; display: flex; justify-content: space-between;">
+            <div>
+              <h3 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; font-weight: 700;">Bill To:</h3>
+              <p style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">{activeInvoiceForSilentExport.customer_name || (activeInvoiceForSilentExport.project.startsWith('Direct Sale: ') ? activeInvoiceForSilentExport.project.substring(13) : activeInvoiceForSilentExport.project)}</p>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: #475569;">📍 {activeInvoiceForSilentExport.projects?.location || 'Direct Billing'}</p>
+            </div>
+            <div style="text-align: right;">
+              <h3 style="margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; font-weight: 700;">Payment Status:</h3>
+              <div style="font-size: 12px; color: #0f172a; font-weight: 600; line-height: 1.4; display: flex; flex-direction: column; align-items: flex-end;">
+                <span class="badge status-{activeInvoiceForSilentExport.status.toLowerCase()}" style="display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; margin-bottom: 4px;">{activeInvoiceForSilentExport.status}</span>
+                {#if activeInvoiceForSilentExport.payment_method}
+                  <span style="color: #475569; font-size: 11px;">Method: <strong>{activeInvoiceForSilentExport.payment_method}</strong></span>
+                {/if}
+                {#if activeInvoiceForSilentExport.payment_details}
+                  <span style="color: #64748b; font-size: 10px; max-width: 220px; text-align: right;">{activeInvoiceForSilentExport.payment_details}</span>
+                {/if}
+              </div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px;">
+            <thead>
+              <tr style="border-bottom: 2px solid #e2e8f0; background-color: #f8fafc;">
+                <th style="padding: 10px; text-align: left; color: #475569; font-weight: 700;">Description</th>
+                <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 80px;">Qty</th>
+                <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 120px;">Unit Price</th>
+                <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 140px;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 12px 10px; color: #0f172a;">
+                  <strong>{activeInvoiceForSilentExport.item_name || 'Fire Safety Equipment supply & services'}</strong>
+                  {#if activeInvoiceForSilentExport.item_sku}
+                    <span style="font-size: 11px; color: #475569; margin-left: 4px;">({activeInvoiceForSilentExport.item_sku})</span>
+                  {/if}
+                  <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Quantity Billed: {formatQty(activeInvoiceForSilentExport.qty)} Units | Compliance: {activeInvoiceForSilentExport.vat_challan}</div>
+                </td>
+                <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatQty(activeInvoiceForSilentExport.qty)}</td>
+                <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.price)}</td>
+                <td style="padding: 12px 10px; text-align: right; color: #0f172a; font-weight: 700;">{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Totals -->
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
+            <div style="width: 280px; font-size: 12px;">
+              <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
+                <span>Subtotal:</span>
+                <span style="font-weight: 700; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
+                <span>NBR VAT (15%):</span>
+                <span style="font-weight: 700; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.vat_challan === 'VAT Free (Exempt)' ? 0 : (activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price * 0.15))}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; font-weight: 800; color: #1B2A4A; border-top: 2px double #cbd5e1; margin-top: 4px;">
+                <span>Total Payable:</span>
+                <span>{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price * (activeInvoiceForSilentExport.vat_challan === 'VAT Free (Exempt)' ? 1.0 : 1.15))}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Bill To -->
-        <div style="margin-bottom: 25px; display: flex; justify-content: space-between;">
-          <div>
-            <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Bill To:</h3>
-            <p style="margin: 0; font-size: 15px; font-weight: 700; color: #0f172a;">{activeInvoiceForSilentExport.customer_name || (activeInvoiceForSilentExport.project.startsWith('Direct Sale: ') ? activeInvoiceForSilentExport.project.substring(13) : activeInvoiceForSilentExport.project)}</p>
-            <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;"><strong>Billing Reference:</strong> {activeInvoiceForSilentExport.challan}</p>
+        <!-- Signature & Authorized Seals -->
+        <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 20px;">
+          <div style="font-size: 11px; color: #64748b;">
+            <p style="margin: 0;">Certified under BNBC safety codes.</p>
+            <p style="margin: 2px 0 0 0;">Generated electronically via HFST ERP.</p>
           </div>
-          <div style="text-align: right;">
-            <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Status:</h3>
-            <span class="badge status-{activeInvoiceForSilentExport.status.toLowerCase()}" style="display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px;">{activeInvoiceForSilentExport.status}</span>
-          </div>
-        </div>
-
-        <!-- Items Table -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 13px;">
-          <thead>
-            <tr style="border-bottom: 2px solid #e2e8f0; background-color: #f8fafc;">
-              <th style="padding: 10px; text-align: left; color: #475569; font-weight: 700;">Description</th>
-              <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 80px;">Qty</th>
-              <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 120px;">Unit Price</th>
-              <th style="padding: 10px; text-align: right; color: #475569; font-weight: 700; width: 140px;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style="border-bottom: 1px solid #e2e8f0;">
-              <td style="padding: 12px 10px; color: #0f172a;">
-                Fire Safety Equipment supply & services (Reference: {activeInvoiceForSilentExport.challan})
-                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Compliance: {activeInvoiceForSilentExport.vat_challan}</div>
-              </td>
-              <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatQty(activeInvoiceForSilentExport.qty)}</td>
-              <td style="padding: 12px 10px; text-align: right; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.price)}</td>
-              <td style="padding: 12px 10px; text-align: right; color: #0f172a; font-weight: 700;">{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Totals -->
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 30px;">
-          <div style="width: 280px; font-size: 13px;">
-            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
-              <span>Subtotal:</span>
-              <span style="font-weight: 700; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price)}</span>
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+            <div style="position: relative; height: 75px; width: 150px; margin-bottom: 4px;">
+              <img src="/authorized-seals.png" alt="Authorized Seals" style="height: 100%; width: auto; object-fit: contain; display: block;" />
             </div>
-            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569;">
-              <span>NBR VAT (15%):</span>
-              <span style="font-weight: 700; color: #0f172a;">{formatMoney(activeInvoiceForSilentExport.vat_challan === 'VAT Free (Exempt)' ? 0 : (activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price * 0.15))}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 8px 0; font-size: 15px; font-weight: 800; color: #1e3a8a; border-top: 2px double #cbd5e1; margin-top: 4px;">
-              <span>Total Payable:</span>
-              <span>{formatMoney(activeInvoiceForSilentExport.qty * activeInvoiceForSilentExport.price * (activeInvoiceForSilentExport.vat_challan === 'VAT Free (Exempt)' ? 1.0 : 1.15))}</span>
+            <div style="border-top: 1px solid #cbd5e1; width: 160px; padding-top: 4px; font-size: 11px; font-weight: 700; color: #1B2A4A; text-align: center; text-transform: uppercase; letter-spacing: 0.5px;">
+              Authorized Seal
             </div>
           </div>
         </div>
 
-        <!-- Footer terms -->
-        <div style="border-top: 1px solid #cbd5e1; padding-top: 15px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5;">
-          <p style="margin: 0;">Certified under BNBC safety codes & standard fire protection guidelines.</p>
-          <p style="margin: 2px 0 0 0; font-weight: 700; color: #475569;">Thank you for your business!</p>
+        <!-- Official Letterhead Footer -->
+        <div style="border-top: 1px solid #CCCCCC; padding-top: 10px; margin-top: 10px;">
+          <div style="font-size: 7.8px; color: #333333; line-height: 1.5; text-align: center; width: 100%; font-family: 'Plus Jakarta Sans', sans-serif;">
+            <div style="margin-bottom: 3px;">
+              <span style="font-weight: 700; color: #1B2A4A;">Corporate office:</span> A K Peace Tower (1st Floor), 1/3, Rajdhani Housing, 40 Feet Main Road, Mohammadpur, Dhaka-1207, Bangladesh.
+            </div>
+            <div style="margin-bottom: 3px;">
+              <span style="font-weight: 700; color: #1B2A4A;">Phone:</span> +8801320580631 | +8801320580632, <span style="font-weight: 700; color: #1B2A4A;">E-mail:</span> haquefirebd@gmail.com, <span style="font-weight: 700; color: #1B2A4A;">Website:</span> www.hfstbd.com.
+            </div>
+            <div style="font-size: 7.2px; white-space: nowrap;">
+              <span style="font-weight: 700; color: #1B2A4A;">Factory 01:</span> House # Ga- 85 (Gr Fl.), Middle Badda, Gulshan, Dhaka-1212, Bangladesh. <span style="font-weight: 700; color: #1B2A4A;">Factory 02:</span> A G S Sazidul Market, Gazipura Bus Stand, Gazipur, Bangladesh
+            </div>
+          </div>
         </div>
       </div>
     {/if}

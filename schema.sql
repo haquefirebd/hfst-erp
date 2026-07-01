@@ -137,6 +137,7 @@ CREATE TABLE invoices (
     status VARCHAR(50) NOT NULL,
     payment_method VARCHAR(100) DEFAULT 'Cash',
     payment_details TEXT,
+    item_sku VARCHAR(100) REFERENCES items(sku),
     date DATE NOT NULL,
     due DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
