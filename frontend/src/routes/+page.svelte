@@ -137,7 +137,10 @@
 
   // Simple "Make Invoice" Form states
   let inputSimpleBilling = $state({
+    company_name: '',
     customer_name: '',
+    phone_number: '',
+    location_address: '',
     sku: 'FM200-CYL-120L',
     qty: 1,
     unit_price: 125000,
@@ -147,11 +150,17 @@
     cheque_number: '',
     bank_name: '',
     credit_due_date: '2026-07-24',
-    other_details: ''
+    other_details: '',
+    set_refilling_reminder: false
   });
   let simpleBillingError = $state('');
   let simpleBillingSuccess = $state('');
   let autoInvoiceNumber = $derived('INV-2026-0' + (invoices.length + 1));
+
+  let isFireExtinguisher = $derived.by(() => {
+    const selected = items.find(i => i.sku === inputSimpleBilling.sku);
+    return selected ? (selected.sku.toUpperCase().startsWith('FE-') || selected.name.toLowerCase().includes('extinguisher')) : false;
+  });
 
   // Light/Dark Theme States
   let isDarkMode = $state(true);
@@ -506,13 +515,16 @@
         .from('invoices')
         .select(`
           id, qty, price, vat_challan, status, date, due, payment_method, payment_details,
-          projects (name),
+          project_id,
+          projects (name, client_name),
           challan_id
         `);
       if (data) {
         invoices = data.map((inv: any) => ({
           id: inv.id,
+          project_id: inv.project_id,
           project: inv.projects?.name || 'Direct Sale',
+          customer_name: inv.projects?.client_name || '',
           challan: inv.challan_id || 'Direct Billing',
           qty: parseFloat(inv.qty),
           price: parseFloat(inv.price),
@@ -1287,8 +1299,25 @@
     simpleBillingError = '';
     simpleBillingSuccess = '';
 
-    if (!inputSimpleBilling.customer_name.trim()) {
+    const cleanCompany = inputSimpleBilling.company_name.trim();
+    const cleanCustomer = inputSimpleBilling.customer_name.trim();
+    const cleanPhone = inputSimpleBilling.phone_number.trim();
+    const cleanLocation = inputSimpleBilling.location_address.trim();
+
+    if (!cleanCompany) {
+      simpleBillingError = 'Please enter the Company Name.';
+      return;
+    }
+    if (!cleanCustomer) {
       simpleBillingError = 'Please enter the Customer Name.';
+      return;
+    }
+    if (!cleanPhone) {
+      simpleBillingError = 'Please enter the Phone Number.';
+      return;
+    }
+    if (!cleanLocation) {
+      simpleBillingError = 'Please enter the Location / Address.';
       return;
     }
     if (inputSimpleBilling.qty <= 0) {
@@ -1304,6 +1333,59 @@
     if (!selectedItem) {
       simpleBillingError = 'Invalid product selected.';
       return;
+    }
+
+    const isSandbox = (token === 'hfst_erp_admin_sandbox_token' || !token);
+    let targetProjectId = null;
+
+    // Find or create project directory record
+    const existingProj = projects.find(p => p.name.toLowerCase() === cleanCompany.toLowerCase());
+    if (existingProj) {
+      targetProjectId = existingProj.id;
+    } else {
+      targetProjectId = 'PRJ-AUTO-' + Date.now();
+      const newProjPayload = {
+        id: targetProjectId,
+        name: cleanCompany,
+        client_name: cleanCustomer,
+        contact_person: cleanCustomer,
+        contact_number: cleanPhone,
+        location: cleanLocation,
+        starting_date: '2026-06-24',
+        is_refilling_project: inputSimpleBilling.set_refilling_reminder,
+        is_refilling_reminders: inputSimpleBilling.set_refilling_reminder,
+        supplied_items: `${inputSimpleBilling.sku}:${inputSimpleBilling.qty}`
+      };
+
+      if (!isSandbox) {
+        try {
+          const { error: projErr } = await supabase
+            .from('projects')
+            .insert(newProjPayload);
+          if (projErr) {
+            console.warn('Could not auto-insert project:', projErr.message);
+          }
+        } catch (e) {
+          console.warn('Supabase project auto-insert failed', e);
+        }
+      }
+
+      // Sync local state
+      projects = [...projects, {
+        id: targetProjectId,
+        name: cleanCompany,
+        client: cleanCustomer,
+        location: cleanLocation,
+        starting_date: '2026-06-24',
+        is_refilling_project: inputSimpleBilling.set_refilling_reminder,
+        is_refilling_reminders: inputSimpleBilling.set_refilling_reminder,
+        contact_number: cleanPhone,
+        contact_person: cleanCustomer,
+        supplied_items_list: [{ sku: inputSimpleBilling.sku, qty: inputSimpleBilling.qty }]
+      }];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hfst_projects', JSON.stringify(projects));
+      }
     }
 
     const nextInvId = autoInvoiceNumber;
@@ -1322,13 +1404,13 @@
       ? inputSimpleBilling.other_details
       : null;
 
-    const isSandbox = (token === 'hfst_erp_admin_sandbox_token' || !token);
     if (!isSandbox) {
       try {
         const { error } = await supabase
           .from('invoices')
           .insert({
             id: nextInvId,
+            project_id: targetProjectId,
             qty: inputSimpleBilling.qty,
             price: inputSimpleBilling.unit_price,
             vat_challan: vatChallan,
@@ -1347,8 +1429,9 @@
         } else {
           const createdInvoice = {
             id: nextInvId,
-            project: 'Direct Sale: ' + inputSimpleBilling.customer_name.trim(),
-            customer_name: inputSimpleBilling.customer_name.trim(),
+            project_id: targetProjectId,
+            project: cleanCompany,
+            customer_name: cleanCustomer,
             challan: 'Direct Billing',
             qty: inputSimpleBilling.qty,
             price: inputSimpleBilling.unit_price,
@@ -1359,15 +1442,19 @@
             payment_method: inputSimpleBilling.payment_method,
             payment_details: details
           };
-          simpleBillingSuccess = `✔ Invoice ${nextInvId} for ${inputSimpleBilling.customer_name} issued successfully! Total Billed: ${formatMoney(finalTotal)}`;
+          simpleBillingSuccess = `✔ Invoice ${nextInvId} for ${cleanCompany} issued successfully! Total Billed: ${formatMoney(finalTotal)}`;
           await fetchInvoices();
+          inputSimpleBilling.company_name = '';
           inputSimpleBilling.customer_name = '';
+          inputSimpleBilling.phone_number = '';
+          inputSimpleBilling.location_address = '';
           inputSimpleBilling.qty = 1;
           inputSimpleBilling.is_vat_free = false;
           inputSimpleBilling.mobile_ref_id = '';
           inputSimpleBilling.cheque_number = '';
           inputSimpleBilling.bank_name = '';
           inputSimpleBilling.other_details = '';
+          inputSimpleBilling.set_refilling_reminder = false;
           handleDirectDriveUpload(createdInvoice);
           return;
         }
@@ -1379,8 +1466,9 @@
     // Sandbox Fallback
     const newInvoice = {
       id: nextInvId,
-      project: 'Direct Sale: ' + inputSimpleBilling.customer_name.trim(),
-      customer_name: inputSimpleBilling.customer_name.trim(),
+      project_id: targetProjectId,
+      project: cleanCompany,
+      customer_name: cleanCustomer,
       challan: 'Direct Billing',
       qty: inputSimpleBilling.qty,
       price: inputSimpleBilling.unit_price,
@@ -1397,14 +1485,18 @@
       arAging.current += finalTotal;
       arAging.total += finalTotal;
     }
-    simpleBillingSuccess = `✔ Invoice ${nextInvId} for ${inputSimpleBilling.customer_name} issued successfully! Total Billed: ${formatMoney(finalTotal)} (Sandbox)`;
+    simpleBillingSuccess = `✔ Invoice ${nextInvId} for ${cleanCompany} issued successfully! Total Billed: ${formatMoney(finalTotal)} (Sandbox)`;
+    inputSimpleBilling.company_name = '';
     inputSimpleBilling.customer_name = '';
+    inputSimpleBilling.phone_number = '';
+    inputSimpleBilling.location_address = '';
     inputSimpleBilling.qty = 1;
     inputSimpleBilling.is_vat_free = false;
     inputSimpleBilling.mobile_ref_id = '';
     inputSimpleBilling.cheque_number = '';
     inputSimpleBilling.bank_name = '';
     inputSimpleBilling.other_details = '';
+    inputSimpleBilling.set_refilling_reminder = false;
     handleDirectDriveUpload(newInvoice);
   }
 
@@ -2315,8 +2407,23 @@
                     <input type="text" value={autoInvoiceNumber} readonly class="bg-dark-disabled" />
                   </label>
                   <label>
-                    Customer / Client Name
-                    <input type="text" bind:value={inputSimpleBilling.customer_name} placeholder="e.g. Dhaka Central Hospital" required />
+                    Company / Client Name *
+                    <input type="text" bind:value={inputSimpleBilling.company_name} placeholder="e.g. Dhaka Central Hospital" required />
+                  </label>
+                </div>
+
+                <div class="form-row-3">
+                  <label>
+                    Contact Person Name *
+                    <input type="text" bind:value={inputSimpleBilling.customer_name} placeholder="e.g. Mir Shabab" required />
+                  </label>
+                  <label>
+                    Contact Phone Number *
+                    <input type="tel" bind:value={inputSimpleBilling.phone_number} placeholder="e.g. +8801700000000" required />
+                  </label>
+                  <label>
+                    Location / Physical Address *
+                    <input type="text" bind:value={inputSimpleBilling.location_address} placeholder="e.g. Uttara Sector-4, Dhaka" required />
                   </label>
                 </div>
 
@@ -2345,6 +2452,20 @@
                     <span>This sale is VAT Free (Tax Exempt)</span>
                   </label>
                 </div>
+
+                {#if isFireExtinguisher}
+                  <div style="background: rgba(227, 30, 36, 0.05); padding: 16px; border-radius: 4px; border: 1px dashed rgba(227, 30, 36, 0.4); margin-top: 15px; box-sizing: border-box; display: flex; align-items: center; gap: 10px;">
+                    <input 
+                      type="checkbox" 
+                      bind:checked={inputSimpleBilling.set_refilling_reminder} 
+                      id="chk-refill-reminder" 
+                      style="width: auto; cursor: pointer; margin: 0;" 
+                    />
+                    <label for="chk-refill-reminder" style="margin: 0; cursor: pointer; color: #f87171; font-weight: 700; font-size: 13px;">
+                      🔥 Set Refilling Reminder for this Fire Extinguisher?
+                    </label>
+                  </div>
+                {/if}
 
                 <div class="payment-method-section" style="margin-top: 24px; margin-bottom: 24px;">
                   <label style="font-weight: 700; font-size: 11px; color: #f97316; text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 0.05em;">Payment Method *</label>
