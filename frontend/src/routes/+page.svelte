@@ -1229,7 +1229,67 @@
     }
   }
 
+  function authorizeGoogleDrive() {
+    if (!googleClientId.trim()) {
+      alert('Please enter and save your Google Client ID first in the settings panel.');
+      return;
+    }
+    
+    if (typeof (window as any).google === 'undefined') {
+      alert('Google OAuth library is still loading. Please try again in a few seconds.');
+      return;
+    }
+
+    try {
+      const clientConfig: any = {
+        client_id: googleClientId.trim(),
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: (tokenResponse: any) => {
+          if (tokenResponse.error) {
+            alert('Authentication failed: ' + tokenResponse.error);
+            return;
+          }
+          googleAccessToken = tokenResponse.access_token;
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('hfst_google_access_token', googleAccessToken);
+          }
+          alert('Successfully connected to Google Drive!');
+        }
+      };
+
+      if (googleLoginHint.trim()) {
+        clientConfig.hint = googleLoginHint.trim();
+      }
+
+      const client = (window as any).google.accounts.oauth2.initTokenClient(clientConfig);
+      client.requestAccessToken();
+    } catch (err: any) {
+      alert('OAuth Connect Error: ' + err.message);
+    }
+  }
+
   async function handleDirectDriveUpload(invoice: any) {
+    if (!googleClientId.trim()) {
+      driveError = 'Please enter and save your Google Client ID first in the settings panel.';
+      return;
+    }
+
+    isUploadingToDrive = true;
+    driveSuccess = '';
+    driveError = '';
+
+    if (googleAccessToken) {
+      await uploadInvoiceToDrive(invoice, googleAccessToken, true);
+      return;
+    }
+
+    // Token missing: warn user instead of showing popup client config (which gets blocked by browsers in async context)
+    isUploadingToDrive = false;
+    driveError = '⚠️ Google Drive is not connected. Automatic upload skipped. Click "Connect Drive" in the top header to connect and enable automatic uploads.';
+    console.warn('Google Drive access token missing, auto-upload skipped');
+  }
+
+  async function handleManualDriveUpload(invoice: any) {
     if (!googleClientId.trim()) {
       alert('Please enter and save your Google Client ID first in the settings panel.');
       return;
@@ -1284,7 +1344,7 @@
       client.requestAccessToken();
     } catch (err: any) {
       isUploadingToDrive = false;
-      driveError = 'OAuth Direct Init Error: ' + err.message;
+      driveError = 'OAuth Manual Connect Error: ' + err.message;
     }
   }
 
@@ -1694,11 +1754,15 @@
     const localGoogleClientId = localStorage.getItem('hfst_google_client_id');
     if (localGoogleClientId) {
       googleClientId = localGoogleClientId;
+    } else {
+      googleClientId = '448722868485-u4n7m32e08h6rku34nngqjkqc5nlneqa.apps.googleusercontent.com';
     }
 
     const localGoogleLoginHint = localStorage.getItem('hfst_google_login_hint');
     if (localGoogleLoginHint) {
       googleLoginHint = localGoogleLoginHint;
+    } else {
+      googleLoginHint = 'redshieldsafety@gmail.com';
     }
 
     const localGoogleFolderId = localStorage.getItem('hfst_google_folder_id');
@@ -1706,6 +1770,13 @@
       googleDriveFolderId = localGoogleFolderId;
     } else {
       googleDriveFolderId = '12W4P3O-TRr3t5MFRcse9qDOzPtwWhFi_';
+    }
+
+    if (typeof sessionStorage !== 'undefined') {
+      const storedToken = sessionStorage.getItem('hfst_google_access_token');
+      if (storedToken) {
+        googleAccessToken = storedToken;
+      }
     }
     
     // Items
@@ -1995,6 +2066,21 @@
           <h1>HFST Fire Security & Protection ERP</h1>
         </div>
         <div class="header-status-area">
+          {#if googleAccessToken}
+            <span style="font-size: 12px; color: #10b981; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 4px;">
+              🟢 Drive Connected
+            </span>
+          {:else}
+            <button 
+              type="button" 
+              onclick={authorizeGoogleDrive} 
+              class="btn-theme-toggle-header" 
+              style="border: 1px solid #f97316; color: #f97316; font-weight: 700;" 
+              title="Connect with Google Drive to enable auto uploads"
+            >
+              🔌 Connect Drive
+            </button>
+          {/if}
           <button type="button" onclick={() => showUserGuideModal = true} class="btn-theme-toggle-header btn-user-guide" aria-label="User Guide" title="Open User Guide">
             📖 User Guide
           </button>
@@ -2993,7 +3079,7 @@
                             <button onclick={() => openInvoicePrint(inv)} class="btn-op edit" style="min-width: auto; padding: 6px 12px !important; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">🖨 Print</button>
                             <button 
                               type="button" 
-                              onclick={() => handleDirectDriveUpload(inv)} 
+                              onclick={() => handleManualDriveUpload(inv)} 
                               class="btn" 
                               style="background-color: #0f9d58; color: white; border: none; border-radius: 4px; min-width: auto; padding: 6px 12px !important; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 13px !important; cursor: pointer;"
                               disabled={isUploadingToDrive}
