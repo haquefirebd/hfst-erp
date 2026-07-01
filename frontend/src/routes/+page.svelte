@@ -1248,34 +1248,19 @@
           localStorage.setItem('hfst_google_login_hint', loginHint);
         }
       }
+
+      const redirectUri = window.location.origin + '/';
+      const scope = 'https://www.googleapis.com/auth/drive.file';
       
-      if (typeof (window as any).google === 'undefined' || typeof (window as any).google.accounts === 'undefined' || typeof (window as any).google.accounts.oauth2 === 'undefined') {
-        alert('Google OAuth library is still loading. Please try again in a few seconds.\n(Details: window.google is ' + (typeof (window as any).google) + ')');
-        return;
-      }
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(clientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=token` +
+        `&scope=${encodeURIComponent(scope)}` +
+        `&state=gdrive_connect` +
+        `&login_hint=${encodeURIComponent(loginHint)}`;
 
-      const clientConfig: any = {
-        client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/drive.file',
-        callback: (tokenResponse: any) => {
-          if (tokenResponse.error) {
-            alert('Authentication failed from Google: ' + tokenResponse.error + '\nDetails: ' + JSON.stringify(tokenResponse));
-            return;
-          }
-          googleAccessToken = tokenResponse.access_token;
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem('hfst_google_access_token', googleAccessToken);
-          }
-          alert('Successfully connected to Google Drive!');
-        }
-      };
-
-      if (loginHint) {
-        clientConfig.hint = loginHint;
-      }
-
-      const client = (window as any).google.accounts.oauth2.initTokenClient(clientConfig);
-      client.requestAccessToken();
+      window.location.href = authUrl;
     } catch (err: any) {
       alert('OAuth Connect Error:\nMessage: ' + err.message + '\nStack: ' + err.stack);
     }
@@ -1303,62 +1288,18 @@
   }
 
   async function handleManualDriveUpload(invoice: any) {
-    if (!googleClientId.trim()) {
-      alert('Please enter and save your Google Client ID first in the settings panel.');
-      return;
-    }
-
-    isUploadingToDrive = true;
-    driveSuccess = '';
-    driveError = '';
-
     if (googleAccessToken) {
+      isUploadingToDrive = true;
+      driveSuccess = '';
+      driveError = '';
       await uploadInvoiceToDrive(invoice, googleAccessToken, true);
       return;
     }
 
-    if (typeof (window as any).google === 'undefined' || typeof (window as any).google.accounts === 'undefined' || typeof (window as any).google.accounts.oauth2 === 'undefined') {
-      isUploadingToDrive = false;
-      driveError = 'Google OAuth library is still loading. Please try again in a few seconds.';
-      return;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hfst_pending_invoice_upload_id', invoice.id);
     }
-
-    if (typeof (window as any).html2pdf === 'undefined') {
-      isUploadingToDrive = false;
-      driveError = 'PDF conversion library is still loading. Please try again in a few seconds.';
-      return;
-    }
-
-    try {
-      const clientConfig: any = {
-        client_id: googleClientId.trim(),
-        scope: 'https://www.googleapis.com/auth/drive.file',
-        callback: async (tokenResponse: any) => {
-          if (tokenResponse.error) {
-            isUploadingToDrive = false;
-            driveError = 'Authentication failed: ' + tokenResponse.error;
-            return;
-          }
-
-          googleAccessToken = tokenResponse.access_token;
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem('hfst_google_access_token', googleAccessToken);
-          }
-
-          await uploadInvoiceToDrive(invoice, googleAccessToken, true);
-        }
-      };
-
-      if (googleLoginHint.trim()) {
-        clientConfig.hint = googleLoginHint.trim();
-      }
-
-      const client = (window as any).google.accounts.oauth2.initTokenClient(clientConfig);
-      client.requestAccessToken();
-    } catch (err: any) {
-      isUploadingToDrive = false;
-      driveError = 'OAuth Manual Connect Error: ' + err.message;
-    }
+    authorizeGoogleDrive();
   }
 
   // -------------------------------------------------------------
@@ -1872,7 +1813,47 @@
     localStorage.setItem('hfst_projects', JSON.stringify(projects));
   }
 
+  async function checkPendingManualUpload() {
+    if (!googleAccessToken) return;
+    if (typeof window === 'undefined') return;
+    
+    const pendingInvoiceId = localStorage.getItem('hfst_pending_invoice_upload_id');
+    if (!pendingInvoiceId) return;
+
+    localStorage.removeItem('hfst_pending_invoice_upload_id');
+    
+    await tick();
+    const pendingInv = invoices.find(i => i.id === pendingInvoiceId);
+    if (pendingInv) {
+      uploadInvoiceToDrive(pendingInv, googleAccessToken, true);
+    } else {
+      console.warn('Pending manual invoice upload not found in invoices list:', pendingInvoiceId);
+    }
+  }
+
   onMount(async () => {
+    // Parse Google OAuth redirect hash parameters
+    if (typeof window !== 'undefined' && window.location.hash) {
+      try {
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        const state = params.get('state');
+        
+        if (accessToken && state === 'gdrive_connect') {
+          googleAccessToken = accessToken;
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('hfst_google_access_token', googleAccessToken);
+          }
+          // Clean the hash parameter from URL address bar
+          history.replaceState("", document.title, window.location.pathname + window.location.search);
+          alert('🎉 Successfully connected to Google Drive!');
+        }
+      } catch (hashErr) {
+        console.error('Error parsing OAuth redirect hash:', hashErr);
+      }
+    }
+
     if (typeof sessionStorage !== 'undefined') {
       const cachedToken = sessionStorage.getItem('hfst_google_access_token');
       if (cachedToken) {
@@ -1880,12 +1861,14 @@
       }
     }
     initializeLocalStorage();
+    checkPendingManualUpload();
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         token = session.access_token;
         isAuthenticated = true;
         await loadAllData();
+        checkPendingManualUpload();
       }
       
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -1893,6 +1876,7 @@
           token = session.access_token;
           isAuthenticated = true;
           await loadAllData();
+          checkPendingManualUpload();
         } else {
           token = '';
           isAuthenticated = false;
