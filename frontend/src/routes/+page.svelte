@@ -3095,8 +3095,16 @@
                 <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;"><strong>Billing Reference:</strong> {selectedInvoiceForPrint.challan}</p>
               </div>
               <div style="text-align: right;">
-                <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Status:</h3>
-                <span class="badge status-{selectedInvoiceForPrint.status.toLowerCase()}" style="display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px;">{selectedInvoiceForPrint.status}</span>
+                <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px;">Payment Status:</h3>
+                <div style="font-size: 13px; color: #0f172a; font-weight: 600; line-height: 1.4; display: flex; flex-direction: column; align-items: flex-end;">
+                  <span class="badge status-{selectedInvoiceForPrint.status.toLowerCase()}" style="display: inline-block; padding: 4px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; margin-bottom: 4px;">{selectedInvoiceForPrint.status}</span>
+                  {#if selectedInvoiceForPrint.payment_method}
+                    <span style="color: #475569; font-size: 12px;">Method: <strong>{selectedInvoiceForPrint.payment_method}</strong></span>
+                  {/if}
+                  {#if selectedInvoiceForPrint.payment_details}
+                    <span style="color: #64748b; font-size: 11px; max-width: 220px; text-align: right;">{selectedInvoiceForPrint.payment_details}</span>
+                  {/if}
+                </div>
               </div>
             </div>
 
