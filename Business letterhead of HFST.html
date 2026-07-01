@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HFST Blank Letterhead</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================================
+       BRAND SYSTEM & VARIABLES
+       ========================================================================== */
+    :root {
+      /* Official Company Palette */
+      --primary-red: #E31E24;     /* Accent Red */
+      --primary-navy: #1B2A4A;    /* Corporate Navy */
+      --neutral-white: #FFFFFF;   /* Canvas Background */
+      --light-gray: #F4F5F7;      /* Subtle fill background */
+      
+      /* Typography Stack - Clean Geometric Sans-Serif */
+      --font-sans: "Plus Jakarta Sans", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
+      
+      /* Print Margins (Exact specifications to fit on a single A4) */
+      --margin-top: 15mm;
+      --margin-bottom: 15mm;
+      --margin-left: 18mm;
+      --margin-right: 18mm;
+    }
+
+    /* ==========================================================================
+       GLOBAL STYLES & RESET
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-sans);
+      color: #333333;
+      background-color: var(--neutral-white);
+    }
+
+    /* ==========================================================================
+       A4 PAGE CONTAINER & RESOLUTION 1:1 SETUP
+       ========================================================================== */
+    .page {
+      background-color: var(--neutral-white);
+      position: relative;
+    }
+
+    .page-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+    }
+
+    /* SCREEN PREVIEW STYLES - Mimics printed paper with floating shadow */
+    @media screen {
+      body {
+        background-color: #F0F2F5;
+        padding-top: 130px; /* Offset for the floating control toolbar */
+        padding-bottom: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .page {
+        width: 210mm;
+        height: 297mm;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        border-radius: 4px;
+        margin-bottom: 20px;
+      }
+
+      .page-content {
+        padding: var(--margin-top) var(--margin-left) var(--margin-bottom) var(--margin-right);
+      }
+    }
+
+    /* PRINT LAYOUT STYLES - Direct mapping to A4 printable region */
+    @media print {
+      @page {
+        size: A4;
+        margin: var(--margin-top) var(--margin-left) var(--margin-bottom) var(--margin-right);
+      }
+
+      html, body {
+        background-color: var(--neutral-white);
+        height: 100%;
+        overflow: hidden; /* Prevent spillover phantom pages */
+      }
+
+      .page {
+        width: 100%;
+        height: 100%;
+      }
+
+      .page-content {
+        padding: 0; /* Remove double-padding in print as @page margin handles it */
+      }
+    }
+
+    /* ==========================================================================
+       HEADER COMPONENT (Ultra-compact layout to maximize workspace area)
+       ========================================================================== */
+    .header {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 3mm;
+    }
+
+    .logo-text-lockup {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5mm; 
+    }
+
+    .logo-container {
+      background-color: #FFFFFF;
+      border: 1px solid rgba(27, 42, 74, 0.08);
+      border-radius: 12px;
+      padding: 5px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(27, 42, 74, 0.02);
+      transition: all 0.2s ease;
+    }
+
+    .logo {
+      height: 24mm; /* Nested logo height inside frame */
+      width: auto;
+      display: block;
+    }
+
+    /* Screen height matches ~90px to ensure balanced footprint */
+    @media screen {
+      .logo {
+        height: 90px;
+      }
+    }
+
+    .header-text {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .company-name {
+      font-size: 17pt; /* Prominent name matching larger logo */
+      font-weight: 700;
+      color: var(--primary-navy);
+      margin: 0;
+      line-height: 1.15;
+      letter-spacing: 0.4px;
+    }
+
+    .highlight-red {
+      color: var(--primary-red);
+    }
+
+    .slogan {
+      font-size: 9.5pt; /* Prominent slogan */
+      font-weight: 400;
+      color: var(--primary-navy);
+      margin: 4px 0 0 0;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      opacity: 0.9;
+    }
+
+    /* Double Accent Rule: 2px Navy + 1px Red with precise spacing */
+    .header-accent-line {
+      margin-top: 2.5mm; /* Tightened rule margin */
+      height: 5px;
+      position: relative;
+      width: 100%;
+    }
+
+    .header-accent-line::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--primary-navy);
+    }
+
+    .header-accent-line::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background-color: var(--primary-red);
+    }
+
+    /* ==========================================================================
+       LETTER BODY COMPONENT (Clean Blank Slate Canvas)
+       ========================================================================== */
+    .letter-body {
+      flex-grow: 1;
+      padding-top: 5mm;
+      padding-bottom: 5mm;
+      font-size: 10.5pt;
+      line-height: 1.5;
+      color: #2b2b2b;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    /* ==========================================================================
+       FOOTER COMPONENT (Horizontal 2-Line Static Layout)
+       ========================================================================== */
+    .footer {
+      width: 100%;
+      margin-top: auto;
+      padding-top: 2mm;
+    }
+
+    .footer-accent-line {
+      border-top: 1px solid #CCCCCC; /* Clean thin separator like reference image */
+      margin-bottom: 2mm;
+    }
+
+    .footer-content {
+      font-size: 8pt;
+      color: #333333;
+      line-height: 1.5;
+      width: 100%;
+      text-align: center;
+    }
+
+    .footer-line {
+      width: 100%;
+      margin-bottom: 3px;
+    }
+
+    .footer-label {
+      font-weight: 700;
+      color: var(--primary-navy);
+    }
+
+    /* ==========================================================================
+       INTERACTIVE EDITABLE INTERFACE (SCREEN ONLY)
+       ========================================================================== */
+    @media screen {
+      .editable {
+        position: relative;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+      }
+      
+      .editable:hover {
+        border-color: rgba(27, 42, 74, 0.25);
+        background-color: rgba(27, 42, 74, 0.01);
+        border-radius: 4px;
+      }
+
+      /* Visual state when the "Highlight Editable Fields" toggle is active */
+      .editable-highlight {
+        border: 1px dashed rgba(227, 30, 36, 0.4) !important;
+        background-color: rgba(227, 30, 36, 0.02) !important;
+        border-radius: 4px;
+      }
+      
+      .editable-highlight:hover {
+        border-color: var(--primary-red) !important;
+        background-color: rgba(227, 30, 36, 0.05) !important;
+      }
+
+      .editable:focus {
+        border: 1px solid var(--primary-navy) !important;
+        background-color: rgba(27, 42, 74, 0.02) !important;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(27, 42, 74, 0.08);
+        border-radius: 4px;
+      }
+    }
+
+    /* Strip all edit modes/borders in print output */
+    @media print {
+      .editable {
+        border: none !important;
+        background-color: transparent !important;
+        outline: none !important;
+        box-shadow: none !important;
+      }
+    }
+
+    /* ==========================================================================
+       CONTROL PANEL TOOLBAR / PRINT SETUP RIBBON (SCREEN ONLY)
+       ========================================================================== */
+    @media screen {
+      .toolbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(27, 42, 74, 0.96);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-bottom: 3px solid var(--primary-red);
+        color: #FFFFFF;
+        z-index: 1000;
+        padding: 12px 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .toolbar-container {
+        max-width: 1100px;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .toolbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .brand-badge {
+        background-color: var(--primary-red);
+        color: #FFFFFF;
+        font-weight: 700;
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+      }
+
+      .toolbar-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+
+      .toolbar-actions {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      /* Control groups for grouping table commands vs layout commands */
+      .action-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .btn {
+        border: none;
+        border-radius: 4px;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.15s ease;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      .btn-sm {
+        padding: 5px 10px;
+        font-size: 0.78rem;
+      }
+
+      .btn-primary {
+        background-color: var(--primary-red);
+        color: #FFFFFF;
+      }
+
+      .btn-primary:hover {
+        background-color: #c7161b;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(227, 30, 36, 0.25);
+      }
+
+      .btn-secondary {
+        background-color: rgba(255, 255, 255, 0.12);
+        color: #FFFFFF;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+      }
+
+      .btn-secondary:hover {
+        background-color: rgba(255, 255, 255, 0.22);
+        transform: translateY(-1px);
+      }
+
+      .btn-secondary.active {
+        background-color: rgba(227, 30, 36, 0.25);
+        border-color: var(--primary-red);
+      }
+
+      .icon-sm {
+        width: 12px;
+        height: 12px;
+        fill: currentColor;
+      }
+
+      .toolbar-tips {
+        max-width: 1100px;
+        width: 100%;
+        font-size: 0.78rem;
+        color: rgba(255, 255, 255, 0.75);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 8px;
+        text-align: left;
+      }
+
+      .tip-badge {
+        color: #FFC107;
+        font-weight: 600;
+      }
+    }
+
+    /* Completely hide toolbar from print layout */
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       CONTROL PANEL TOOLBAR / PRINT SETUP RIBBON (SCREEN ONLY)
+       ========================================================================== -->
+  <div class="toolbar no-print">
+    <div class="toolbar-container">
+      <div class="toolbar-brand">
+        <span class="brand-badge">HFST</span>
+        <span class="toolbar-title">Letterhead Editor</span>
+      </div>
+      <div class="toolbar-actions">
+        
+        <!-- Document Preview & Output Group -->
+        <div class="action-group">
+          <!-- Interactive content toggle button -->
+          <button class="btn btn-secondary btn-sm" onclick="toggleEditHelper()" id="btn-toggle" title="Highlight all editable elements">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+            Highlight Fields
+          </button>
+          
+          <!-- Print trigger button -->
+          <button class="btn btn-primary btn-sm" onclick="window.print()" title="Open printer dialog / Save as PDF">
+            <svg class="icon-sm" viewBox="0 0 24 24">
+              <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/>
+            </svg>
+            Print / PDF
+          </button>
+        </div>
+        
+      </div>
+    </div>
+    <div class="toolbar-tips">
+      <span class="tip-badge">Print Setup Recommendation:</span> Set <strong>Margins</strong> to <strong>None</strong> or <strong>Default</strong>, and verify that <strong>Background graphics</strong> is <strong>enabled</strong> in your print settings to guarantee correct logo and brand rules render perfectly.
+    </div>
+  </div>
+
+
+  <!-- ==========================================================================
+       A4 PHYSICAL PAGE
+       ========================================================================== -->
+  <div class="page">
+    <div class="page-content">
+      
+      <!-- ==========================================================================
+           HEADER SECTION (Centered lockup - ultra compact version)
+           ========================================================================== -->
+      <header class="header">
+        <div class="logo-text-lockup">
+          <div class="logo-container">
+            <img src="logo.png" alt="HFST Logo" class="logo">
+          </div>
+          
+          <div class="header-text">
+            <h1 class="company-name">HAQUE <span class="highlight-red">FIRE</span> SAFETY & TECHNOLOGY</h1>
+            <p class="slogan">Engineering a Safer Bangladesh</p>
+          </div>
+        </div>
+        
+        <!-- Double rules accent line below header -->
+        <div class="header-accent-line"></div>
+      </header>
+
+      <!-- ==========================================================================
+           LETTER BODY SECTION (Clean Blank Slate Canvas)
+           ========================================================================== -->
+      <main class="letter-body">
+        <div class="editable" contenteditable="true" style="flex-grow: 1; outline: none; padding: 2mm 0;"></div>
+      </main>
+
+      <!-- ==========================================================================
+           FOOTER SECTION (Static 3-Line Layout)
+           ========================================================================== -->
+      <footer class="footer">
+        <div class="footer-accent-line"></div>
+        <div class="footer-content">
+          <!-- Line 1: Corporate Office Only -->
+          <div class="footer-line">
+            <span class="footer-label">Corporate office:</span> A K Peace Tower (1st Floor), 1/3, Rajdhani Housing, 40 Feet Main Road, Mohammadpur, Dhaka-1207, Bangladesh.
+          </div>
+          <!-- Line 2: Phone, E-mail & Website -->
+          <div class="footer-line">
+            <span class="footer-label">Phone:</span> +8801320580631 | +8801320580632, <span class="footer-label">E-mail:</span> haquefirebd@gmail.com, <span class="footer-label">Website:</span> www.hfstbd.com.
+          </div>
+          <!-- Line 3: Combined Factory Addresses -->
+          <div class="footer-line" style="font-size: 7.2pt; white-space: nowrap;">
+            <span class="footer-label">Factory 01:</span> House # Ga- 85 (Gr Fl.), Middle Badda, Gulshan, Dhaka-1212, Bangladesh. <span class="footer-label">Factory 02:</span> A G S Sazidul Market, Gazipura Bus Stand, Gazipur, Bangladesh
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MINIMAL INTERACTIVE JAVASCRIPT
+       ========================================================================== -->
+  <script>
+    // Toggle Highlight Border around contenteditable items for visual guidance
+    function toggleEditHelper() {
+      const btn = document.getElementById('btn-toggle');
+      const editables = document.querySelectorAll('.editable');
+      const isActive = btn.classList.toggle('active');
+      
+      editables.forEach(el => {
+        if (isActive) {
+          el.classList.add('editable-highlight');
+        } else {
+          el.classList.remove('editable-highlight');
+        }
+      });
+    }
+  </script>
+</body>
+</html>
