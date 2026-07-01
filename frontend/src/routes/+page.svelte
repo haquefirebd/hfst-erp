@@ -144,7 +144,7 @@
     sku: 'FM200-CYL-120L',
     qty: 1,
     unit_price: 125000,
-    is_vat_free: false,
+    is_vat_free: true,
     payment_method: 'Cash',
     mobile_ref_id: '',
     cheque_number: '',
@@ -1457,7 +1457,7 @@
           inputSimpleBilling.phone_number = '';
           inputSimpleBilling.location_address = '';
           inputSimpleBilling.qty = 1;
-          inputSimpleBilling.is_vat_free = false;
+          inputSimpleBilling.is_vat_free = true;
           inputSimpleBilling.mobile_ref_id = '';
           inputSimpleBilling.cheque_number = '';
           inputSimpleBilling.bank_name = '';
@@ -1502,7 +1502,7 @@
     inputSimpleBilling.phone_number = '';
     inputSimpleBilling.location_address = '';
     inputSimpleBilling.qty = 1;
-    inputSimpleBilling.is_vat_free = false;
+    inputSimpleBilling.is_vat_free = true;
     inputSimpleBilling.mobile_ref_id = '';
     inputSimpleBilling.cheque_number = '';
     inputSimpleBilling.bank_name = '';
@@ -2458,11 +2458,12 @@
                   </label>
                 </div>
 
-                <div class="vat-option-toggle">
-                  <label class="checkbox-label">
+                <div class="switch-container" style="margin-top: 15px; margin-bottom: 5px;">
+                  <label class="switch">
                     <input type="checkbox" bind:checked={inputSimpleBilling.is_vat_free} />
-                    <span>This sale is VAT Free (Tax Exempt)</span>
+                    <span class="slider"></span>
                   </label>
+                  <span class="switch-label-text" style="font-weight: 700; color: #94a3b8;">This sale is VAT Free (Tax Exempt)</span>
                 </div>
 
                 {#if isFireExtinguisher}
