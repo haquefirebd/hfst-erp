@@ -146,7 +146,8 @@
     mobile_ref_id: '',
     cheque_number: '',
     bank_name: '',
-    credit_due_date: '2026-07-24'
+    credit_due_date: '2026-07-24',
+    other_details: ''
   });
   let simpleBillingError = $state('');
   let simpleBillingSuccess = $state('');
@@ -1317,6 +1318,8 @@
       ? `Ref ID: ${inputSimpleBilling.mobile_ref_id}` 
       : inputSimpleBilling.payment_method === 'Cheque/Bank'
       ? `CHQ: ${inputSimpleBilling.cheque_number} (${inputSimpleBilling.bank_name})`
+      : inputSimpleBilling.payment_method === 'Other'
+      ? inputSimpleBilling.other_details
       : null;
 
     const isSandbox = (token === 'hfst_erp_admin_sandbox_token' || !token);
@@ -1364,6 +1367,7 @@
           inputSimpleBilling.mobile_ref_id = '';
           inputSimpleBilling.cheque_number = '';
           inputSimpleBilling.bank_name = '';
+          inputSimpleBilling.other_details = '';
           handleDirectDriveUpload(createdInvoice);
           return;
         }
@@ -1400,6 +1404,7 @@
     inputSimpleBilling.mobile_ref_id = '';
     inputSimpleBilling.cheque_number = '';
     inputSimpleBilling.bank_name = '';
+    inputSimpleBilling.other_details = '';
     handleDirectDriveUpload(newInvoice);
   }
 
@@ -2384,6 +2389,16 @@
                     >
                       💳 On Credit
                     </button>
+                    <button 
+                      type="button" 
+                      class="btn-payment-method"
+                      onclick={() => {
+                        inputSimpleBilling.payment_method = 'Other';
+                      }}
+                      style="padding: 12px; font-weight: 700; text-align: center; border-radius: 4px; cursor: pointer; border: 1px solid {inputSimpleBilling.payment_method === 'Other' ? '#f97316' : '#232a35'}; background: {inputSimpleBilling.payment_method === 'Other' ? '#f97316' : '#12161f'}; color: {inputSimpleBilling.payment_method === 'Other' ? '#0b0d11' : '#94a3b8'}; font-size: 13px; transition: all 0.2s;"
+                    >
+                      ❓ Other
+                    </button>
                   </div>
 
                   {#if inputSimpleBilling.payment_method === 'Mobile Banking'}
@@ -2433,6 +2448,21 @@
                         <input 
                           type="date" 
                           bind:value={inputSimpleBilling.credit_due_date} 
+                          style="width: 100%; box-sizing: border-box; background-color: #171d28; border: 1px solid #232a35; border-radius: 4px; padding: 10px; color: #fff; margin-top: 4px;"
+                          required 
+                        />
+                      </label>
+                    </div>
+                  {/if}
+
+                  {#if inputSimpleBilling.payment_method === 'Other'}
+                    <div style="background: #12161f; padding: 16px; border-radius: 4px; border: 1px dashed #232a35; margin-top: 12px; box-sizing: border-box;">
+                      <label style="margin: 0; display: block; font-weight: 600; font-size: 12px; color: #94a3b8; margin-bottom: 6px;">
+                        Payment Details / Reference *
+                        <input 
+                          type="text" 
+                          bind:value={inputSimpleBilling.other_details} 
+                          placeholder="e.g. Wire Transfer, LC, bkash agent, etc." 
                           style="width: 100%; box-sizing: border-box; background-color: #171d28; border: 1px solid #232a35; border-radius: 4px; padding: 10px; color: #fff; margin-top: 4px;"
                           required 
                         />
