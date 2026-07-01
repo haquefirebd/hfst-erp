@@ -303,7 +303,16 @@
       const { data } = await supabase.from('projects').select('*').order('name');
       if (data) {
         projects = data.map((p: any) => {
-          const parts = (p.supplied_items || '').split(':');
+          const list = (p.supplied_items || '')
+            .split(',')
+            .filter(Boolean)
+            .map((token: string) => {
+              const parts = token.split(':');
+              return {
+                sku: parts[0] || '',
+                qty: parseFloat(parts[1] || '1')
+              };
+            });
           return {
             id: p.id,
             name: p.name,
@@ -313,8 +322,7 @@
             is_refilling_project: !!p.is_refilling_project,
             contact_number: p.contact_number || '',
             contact_person: p.contact_person || '',
-            supplied_items: parts[0] || '',
-            supplied_items_qty: parseFloat(parts[1] || '1')
+            supplied_items_list: list
           };
         });
       }
@@ -738,6 +746,13 @@
     projectError = '';
     projectSuccess = '';
 
+    const serializedItems = inputProjectRecord.is_supply_items 
+      ? inputProjectRecord.supplied_items_list
+          .filter(item => item.sku.trim() !== '')
+          .map(item => `${item.sku.trim()}:${item.qty || 1}`)
+          .join(',')
+      : null;
+
     const payload = {
       name: inputProjectRecord.name.trim(),
       client_name: inputProjectRecord.client_name.trim(),
@@ -746,9 +761,7 @@
       is_refilling_project: !!inputProjectRecord.is_refilling_project,
       contact_number: inputProjectRecord.contact_number.trim() || null,
       contact_person: inputProjectRecord.contact_person.trim() || null,
-      supplied_items: inputProjectRecord.is_supply_items 
-        ? `${(inputProjectRecord.supplied_items || '').trim()}:${inputProjectRecord.supplied_items_qty || 1}` 
-        : null
+      supplied_items: serializedItems
     };
 
     if (!payload.name || !payload.client_name || !payload.location) {
@@ -763,7 +776,16 @@
       if (isSandbox) {
         const idx = projects.findIndex(p => p.id === projId);
         if (idx !== -1) {
-          const parts = (payload.supplied_items || '').split(':');
+          const list = (payload.supplied_items || '')
+            .split(',')
+            .filter(Boolean)
+            .map((token: string) => {
+              const parts = token.split(':');
+              return {
+                sku: parts[0] || '',
+                qty: parseFloat(parts[1] || '1')
+              };
+            });
           projects[idx] = {
             id: projId,
             name: payload.name,
@@ -773,8 +795,7 @@
             is_refilling_project: payload.is_refilling_project,
             contact_number: payload.contact_number || '',
             contact_person: payload.contact_person || '',
-            supplied_items: parts[0] || '',
-            supplied_items_qty: parseFloat(parts[1] || '1')
+            supplied_items_list: list
           };
           projects = [...projects];
           persistLocalData();
@@ -799,7 +820,16 @@
     } else {
       const nextProjId = 'proj-' + (projects.length > 0 ? Math.max(...projects.map(p => parseInt(p.id.split('-')[1] || '0'))) + 1 : 1);
       if (isSandbox) {
-        const parts = (payload.supplied_items || '').split(':');
+        const list = (payload.supplied_items || '')
+          .split(',')
+          .filter(Boolean)
+          .map((token: string) => {
+            const parts = token.split(':');
+            return {
+              sku: parts[0] || '',
+              qty: parseFloat(parts[1] || '1')
+            };
+          });
         const newProj = {
           id: nextProjId,
           name: payload.name,
@@ -809,8 +839,7 @@
           is_refilling_project: payload.is_refilling_project,
           contact_number: payload.contact_number || '',
           contact_person: payload.contact_person || '',
-          supplied_items: parts[0] || '',
-          supplied_items_qty: parseFloat(parts[1] || '1')
+          supplied_items_list: list
         };
         projects = [...projects, newProj];
         persistLocalData();
@@ -1552,6 +1581,14 @@
     } else {
       localStorage.setItem('hfst_quotes', JSON.stringify(quotes));
     }
+
+    // Projects
+    const localProjects = localStorage.getItem('hfst_projects');
+    if (localProjects) {
+      projects = JSON.parse(localProjects);
+    } else {
+      localStorage.setItem('hfst_projects', JSON.stringify(projects));
+    }
   }
 
   function persistLocalData() {
@@ -1562,6 +1599,7 @@
     localStorage.setItem('hfst_serialized_assets', JSON.stringify(serializedAssets));
     localStorage.setItem('hfst_batches', JSON.stringify(batches));
     localStorage.setItem('hfst_quotes', JSON.stringify(quotes));
+    localStorage.setItem('hfst_projects', JSON.stringify(projects));
   }
 
   onMount(async () => {
